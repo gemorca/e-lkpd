@@ -5,6 +5,7 @@ import { apiPost, fetchAllInitialData } from '../services/api.js';
 import { markSelesai } from '../services/progress.js';
 import { state } from '../state.js';
 import { escapeHtml as e, jsArg, safeUrl } from '../services/html.js';
+import { isPublish, sama } from '../services/match.js';
 
 export function getYoutubeEmbedUrl(url) {
   if (!url || typeof url !== 'string') return '';
@@ -24,7 +25,7 @@ export function getYoutubeEmbedUrl(url) {
 }
 
 export function renderLkpdView(ptmId) {
-  const lkpdObj = (state.cachedData.lkpd || []).find((l) => l.id_pertemuan === ptmId && l.status === 'Publish');
+  const lkpdObj = (state.cachedData.lkpd || []).find((l) => sama(l.id_pertemuan, ptmId) && isPublish(l.status));
   if (!lkpdObj) return `<div class="p-8 text-center text-slate-400">LKPD belum tersedia pada pertemuan ini.</div>`;
 
   let questions = [];

@@ -3,10 +3,11 @@ import { openPdfFullscreen, requireStudentAuth, setButtonLoading, showToast, toa
 import { apiPost, fetchAllInitialData } from '../services/api.js';
 import { state } from '../state.js';
 import { escapeHtml as e, jsArg, safeUrl } from '../services/html.js';
+import { isPublish, sama } from '../services/match.js';
 
 export function renderMateriView(ptmId) {
   const materiList = (state.cachedData.materi || []).filter(
-    (m) => m.id_pertemuan === ptmId && m.status === 'Publish'
+    (m) => sama(m.id_pertemuan, ptmId) && isPublish(m.status)
   );
   if (materiList.length === 0)
     return `<div class="p-8 text-center text-slate-400">Belum ada bahan ajar pada pertemuan ini.</div>`;

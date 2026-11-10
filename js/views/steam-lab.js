@@ -3,6 +3,7 @@ import { requireStudentAuth, showLoading, showToast } from '../components/modal.
 import { apiPost, fetchAllInitialData } from '../services/api.js';
 import { state } from '../state.js';
 import { escapeHtml as e } from '../services/html.js';
+import { isPublish, kelasCocok, sama } from '../services/match.js';
 
 export function renderRuangSteamView() {
   const userKelas = state.currentUser?.kelas || 'ALL';
@@ -10,13 +11,13 @@ export function renderRuangSteamView() {
 
   const pertemuanList = (state.cachedData.pertemuan || [])
     .filter((p) => {
-      const isPublishedAndClassMatch = p.status === 'Publish' && (p.id_kelas === 'ALL' || p.id_kelas === userKelas);
+      const isPublishedAndClassMatch = isPublish(p.status) && kelasCocok(p.id_kelas, userKelas);
       if (!isPublishedAndClassMatch) return false;
 
       return allLkpd.some(
         (l) =>
-          l.id_pertemuan === p.id_pertemuan &&
-          l.status === 'Publish' &&
+          sama(l.id_pertemuan, p.id_pertemuan) &&
+          isPublish(l.status) &&
           (l.fitur_kanvas === 'TRUE' || l.fitur_kanvas === true)
       );
     })

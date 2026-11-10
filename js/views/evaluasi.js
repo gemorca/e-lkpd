@@ -3,6 +3,7 @@ import { apiPost } from '../services/api.js';
 import { state } from '../state.js';
 import { switchView } from '../components/drawer.js';
 import { escapeHtml as e, jsArg, safeUrl } from '../services/html.js';
+import { isPublish, sama } from '../services/match.js';
 
 let evalTimerInterval = null;
 let activeEvalCtx = null;
@@ -56,7 +57,7 @@ function updateEvalProgress() {
 export function renderEvaluasiView(ptmId) {
   clearEvaluasiTimer();
 
-  const evalObj = (state.cachedData.evaluasi || []).find((e) => e.id_pertemuan === ptmId && e.status === 'Publish');
+  const evalObj = (state.cachedData.evaluasi || []).find((e) => sama(e.id_pertemuan, ptmId) && isPublish(e.status));
   if (!evalObj) return `<div class="p-8 text-center text-slate-400 font-bold">Evaluasi belum tersedia pada pertemuan ini.</div>`;
 
   const soalList = (state.cachedData.soal_evaluasi || []).filter((s) => s.id_evaluasi === evalObj.id_evaluasi);

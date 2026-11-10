@@ -10,9 +10,10 @@ import { markSelesai } from '../services/progress.js';
 import { state } from '../state.js';
 import { escapeHtml as e, jsArg, safeUrl } from '../services/html.js';
 import { labelGame } from '../services/labels.js';
+import { isPublish, sama } from '../services/match.js';
 
 export function renderGameView(ptmId) {
-  const ptmGames = (state.cachedData.games || []).filter((g) => g.id_pertemuan === ptmId && g.status === 'Publish');
+  const ptmGames = (state.cachedData.games || []).filter((g) => sama(g.id_pertemuan, ptmId) && isPublish(g.status));
   if (ptmGames.length === 0)
     return `<div class="p-8 text-center text-slate-400">Belum ada game interaktif pada pertemuan ini.</div>`;
 

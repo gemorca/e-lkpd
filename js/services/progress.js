@@ -1,4 +1,5 @@
 import { state } from '../state.js';
+import { isPublish, kelasCocok, sama } from './match.js';
 
 const norm = (v) => String(v === null || v === undefined ? '' : v).trim().toLowerCase();
 
@@ -65,7 +66,7 @@ function evalLocalDone(idEvaluasi) {
 export function getPertemuanSiswa() {
   const userKelas = state.currentUser?.kelas || 'ALL';
   return (state.cachedData.pertemuan || [])
-    .filter((p) => p.status === 'Publish' && (p.id_kelas === 'ALL' || p.id_kelas === userKelas))
+    .filter((p) => isPublish(p.status) && kelasCocok(p.id_kelas, userKelas))
     .sort((a, b) => Number(a.nomor_pertemuan) - Number(b.nomor_pertemuan));
 }
 
@@ -73,7 +74,7 @@ export function getPertemuanSiswa() {
 export function getProgresPertemuan(ptmId) {
   const user = username();
   const data = state.cachedData;
-  const publish = (list) => (list || []).filter((x) => x.id_pertemuan === ptmId && x.status === 'Publish');
+  const publish = (list) => (list || []).filter((x) => sama(x.id_pertemuan, ptmId) && isPublish(x.status));
   const local = user ? readSet(doneKey(user)) : new Set();
 
   const materi = publish(data.materi);

@@ -1,7 +1,7 @@
-const CACHE_VERSION = 'v21';
+const CACHE_VERSION = 'v22';
 const SHELL_CACHE = `elkpd-steam-shell-${CACHE_VERSION}`;
 const RUNTIME_CACHE = `elkpd-steam-runtime-${CACHE_VERSION}`;
-const GAS_API_URL = 'https://script.google.com/macros/s/AKfycbzFrcmVyE0zCpIMow582jAfXXNOUX8i0VvZXhXNtUdWYN7L2iZVQG2KmhEaeY1uN2YrXQ/exec';
+const GAS_API_URL = 'https://script.google.com/macros/s/AKfycbzeo3vTIRFvxl0q13uw2J2VDaMee0VmUxBaJ_VN3ARaCEyuGDwzf1SLlCJtwEdFr68aqg/exec';
 
 const SHELL_ASSETS = [
     './',
@@ -38,6 +38,7 @@ const SHELL_ASSETS = [
     './js/services/ocr-labels.js',
     './js/services/nilai.js',
     './js/services/html.js',
+    './js/services/match.js',
   './js/services/labels.js',
     './js/services/idb.js',
     './js/services/outbox-status.js',

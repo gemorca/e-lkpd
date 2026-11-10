@@ -14,6 +14,7 @@ import { renderMateriView } from '../views/materi.js';
 import { renderRuangSteamView, updateSteamPertemuanInfo } from '../views/steam-lab.js';
 import { state, saveSessionState } from '../state.js';
 import { escapeHtml as e } from '../services/html.js';
+import { isPublish, sama } from '../services/match.js';
 
 export function toggleDrawer(isOpen) {
   const drawer = document.getElementById('main-drawer');
@@ -81,10 +82,10 @@ export function renderSiswaNav(container) {
     pertemuanList.forEach((ptm) => {
       const ptmId = ptm.id_pertemuan;
 
-      const hasMateri = state.cachedData.materi.some((m) => m.id_pertemuan === ptmId && m.status === 'Publish');
-      const hasLkpd = state.cachedData.lkpd.some((l) => l.id_pertemuan === ptmId && l.status === 'Publish');
-      const hasGame = state.cachedData.games.some((g) => g.id_pertemuan === ptmId && g.status === 'Publish');
-      const hasEvaluasi = state.cachedData.evaluasi.some((e) => e.id_pertemuan === ptmId && e.status === 'Publish');
+      const hasMateri = state.cachedData.materi.some((m) => sama(m.id_pertemuan, ptmId) && isPublish(m.status));
+      const hasLkpd = state.cachedData.lkpd.some((l) => sama(l.id_pertemuan, ptmId) && isPublish(l.status));
+      const hasGame = state.cachedData.games.some((g) => sama(g.id_pertemuan, ptmId) && isPublish(g.status));
+      const hasEvaluasi = state.cachedData.evaluasi.some((e) => sama(e.id_pertemuan, ptmId) && isPublish(e.status));
 
       const progres = getProgresPertemuan(ptmId);
       const ringkas = ringkasProgres(progres);
@@ -285,7 +286,7 @@ export async function switchView(viewId, paramId = null) {
         const lkpdView = await loadLkpdView();
       viewport.innerHTML = renderPertemuanTabs(paramId, viewId) + (lkpdView ? lkpdView.renderLkpdView(paramId) : renderLkpdMissing());
         setTimeout(() => {
-          const lkpdObj = (state.cachedData.lkpd || []).find((l) => l.id_pertemuan === paramId && l.status === 'Publish');
+          const lkpdObj = (state.cachedData.lkpd || []).find((l) => sama(l.id_pertemuan, paramId) && isPublish(l.status));
           const overlayContainer = document.getElementById('siswa-lkpd-overlay-container');
           if (lkpdObj && lkpdObj.peta_field_json && overlayContainer) {
             renderLkpdUntukSiswa(overlayContainer, lkpdObj, paramId);
