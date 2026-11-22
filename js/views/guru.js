@@ -1,10 +1,11 @@
 import { switchView } from '../components/drawer.js';
 import { closeLoading, setButtonLoading, showConfirm, showLoading, showToast } from '../components/modal.js';
-import { openModalPetakanFieldGuru } from '../components/pdf-overlay.js';
+import { bukaEditorLkpd } from '../components/lkpd-editor.js';
 import { collectHotspotItem, renderHotspotConfigForm, renderHotspotItemRow } from '../games/hotspot.js';
 import { apiPost, fetchAllInitialData, refreshSubmissionsData, saveToLocalStorage } from '../services/api.js';
 import { state } from '../state.js';
 import { jsArg } from '../services/html.js';
+import { parsePdfKeDraf } from '../services/lkpd-parser.js';
 import { labelGame, labelLkpdTipe, labelMedia } from '../services/labels.js';
 import { buildRekap, buildRingkasanSiswa, csvDetailSubmisi, csvRekapMatriks, escapeHtml, filterSiswa, filterSubmisi, getNilaiSubmisi, KOLOM_TIPE, labelModul, labelTipe, statistikKelas } from '../services/nilai.js';
 import { populateKelasSelects } from '../views/admin.js';
@@ -92,10 +93,7 @@ export function renderGuruLkpdView(container) {
               <p class="text-slate-500">${escapeHtml(l.instruksi)}</p>
             </div>
             <div class="flex items-center gap-1.5 shrink-0 flex-wrap">
-              ${l.file_pdf_url
-            ? `<button onclick="openModalPetakanFieldGuru(${jsArg(l.id_lkpd)})" class="px-3 py-1 bg-purple-600 text-white font-bold rounded-lg hover:bg-purple-700 transition shadow">🗺️ Petakan Field</button>`
-            : ''
-          }
+              <button onclick="editIsiLkpd(${jsArg(l.id_lkpd)})" class="px-3 py-1 bg-purple-600 text-white font-bold rounded-lg hover:bg-purple-700 transition shadow">✏️ Edit Isi</button>
               <button onclick="openLkpdModal(${jsArg(l.id_lkpd)})" class="px-3 py-1 bg-amber-100 text-amber-800 rounded-lg font-bold hover:bg-amber-200 transition">Edit</button>
               <button onclick="deleteLkpd(${jsArg(l.id_lkpd)})" class="px-3 py-1 bg-red-100 text-red-700 rounded-lg font-bold hover:bg-red-200 transition">Hapus</button>
             </div>
@@ -962,76 +960,55 @@ export function deleteMateri(id) {
   });
 }
 
+let lkpdIsiAktif = null; // isi_json (string) milik LKPD yang sedang dibuka di modal
+
+function cariLkpd(id) {
+  const t = String(id || '').trim();
+  if (!t) return null;
+  return (state.cachedData.lkpd || []).find((x) => String(x.id_lkpd || x.id || '').trim() === t) || null;
+}
+
+function isiLkpdString(l) {
+  if (!l || !l.isi_json) return '';
+  return typeof l.isi_json === 'object' ? JSON.stringify(l.isi_json) : String(l.isi_json);
+}
+
+function ringkasIsi(str) {
+  if (!str) return 'Belum ada isi. Impor dari PDF atau buka editor.';
+  try {
+    const o = JSON.parse(str);
+    const bag = (o.bagian || []).length;
+    const blok = (o.bagian || []).reduce((n, b) => n + (b.blok || []).length, 0);
+    return `Isi tersimpan: ${bag} bagian, ${blok} blok.`;
+  } catch (e) {
+    return 'Isi tersimpan (tidak terbaca).';
+  }
+}
+
 export function openLkpdModal(idLkpd = null) {
   populatePertemuanSelects();
+  const set = (id, v) => { const el = document.getElementById(id); if (el) el.value = v; };
+  const l = cariLkpd(idLkpd);
 
-  const titleElem = document.getElementById('lkpd-modal-title');
-  const idElem = document.getElementById('lkpd-form-id');
-  const pdfIdElem = document.getElementById('lkpd-form-pdf-id');
-  const petaFieldElem = document.getElementById('lkpd-form-peta-field');
-  const ptmElem = document.getElementById('lkpd-form-pertemuan');
-  const tipeElem = document.getElementById('lkpd-form-tipe');
-  const judulElem = document.getElementById('lkpd-form-judul');
-  const instruksiElem = document.getElementById('lkpd-form-instruksi');
-  const pdfUrlElem = document.getElementById('lkpd-form-pdf-url');
-  const isiTeksElem = document.getElementById('lkpd-form-isi-teks');
-  const gambarUrlElem = document.getElementById('lkpd-form-gambar-url');
-  const videoUrlElem = document.getElementById('lkpd-form-video-url');
-  const soalTextElem = document.getElementById('lkpd-form-soal-text');
-  const kanvasElem = document.getElementById('lkpd-form-kanvas');
-
-  if (idLkpd !== null && idLkpd !== undefined && String(idLkpd).trim() !== '') {
-    const targetIdStr = String(idLkpd).trim();
-    const l = (state.cachedData.lkpd || []).find(
-      (x) => String(x.id_lkpd || x.id || '').trim() === targetIdStr
-    );
-
-    if (l) {
-      if (titleElem) titleElem.textContent = 'Edit LKPD Pertemuan';
-      if (idElem) idElem.value = l.id_lkpd || l.id || '';
-      if (pdfIdElem) pdfIdElem.value = l.file_drive_id || '';
-
-      let rawPeta = l.peta_field_json || '';
-      if (typeof rawPeta === 'object' && rawPeta !== null) {
-        rawPeta = JSON.stringify(rawPeta);
-      }
-      if (petaFieldElem) petaFieldElem.value = rawPeta;
-
-      if (ptmElem) ptmElem.value = l.id_pertemuan || '';
-      if (tipeElem) tipeElem.value = l.tipe_lkpd || 'pdf_interaktif';
-      if (judulElem) judulElem.value = l.judul_lkpd || '';
-      if (instruksiElem) instruksiElem.value = l.instruksi || '';
-      if (pdfUrlElem) pdfUrlElem.value = l.file_pdf_url || '';
-      if (isiTeksElem) isiTeksElem.value = l.isi_teks || '';
-      if (gambarUrlElem) gambarUrlElem.value = l.gambar_url || '';
-      if (videoUrlElem) videoUrlElem.value = l.video_url || '';
-
-      let questions = [];
-      try {
-        questions = typeof l.soal_json === 'string' ? JSON.parse(l.soal_json) : l.soal_json || [];
-      } catch (e) {
-        questions = [];
-      }
-      if (soalTextElem) soalTextElem.value = Array.isArray(questions) ? questions.join('\n') : String(questions);
-      if (kanvasElem) kanvasElem.checked = l.fitur_kanvas === 'TRUE' || l.fitur_kanvas === true;
-    }
+  if (l) {
+    document.getElementById('lkpd-modal-title').textContent = 'Edit LKPD Pertemuan';
+    set('lkpd-form-id', l.id_lkpd || l.id || '');
+    set('lkpd-form-pertemuan', l.id_pertemuan || '');
+    set('lkpd-form-judul', l.judul_lkpd || '');
+    set('lkpd-form-instruksi', l.instruksi || '');
+    set('lkpd-form-video-url', l.video_url || '');
+    set('lkpd-form-status', String(l.status || 'Publish').toLowerCase() === 'draft' ? 'Draft' : 'Publish');
+    document.getElementById('lkpd-form-kanvas').checked = l.fitur_kanvas === 'TRUE' || l.fitur_kanvas === true;
+    lkpdIsiAktif = isiLkpdString(l);
   } else {
-    if (titleElem) titleElem.textContent = 'Kelola LKPD Pertemuan';
-    if (idElem) idElem.value = '';
-    if (pdfIdElem) pdfIdElem.value = '';
-    if (petaFieldElem) petaFieldElem.value = '';
-    if (judulElem) judulElem.value = '';
-    if (instruksiElem) instruksiElem.value = '';
-    if (pdfUrlElem) pdfUrlElem.value = '';
-    if (isiTeksElem) isiTeksElem.value = '';
-    if (gambarUrlElem) gambarUrlElem.value = '';
-    if (videoUrlElem) videoUrlElem.value = '';
-    if (soalTextElem) soalTextElem.value = '';
-    if (kanvasElem) kanvasElem.checked = false;
-    if (tipeElem) tipeElem.value = 'pdf_interaktif';
+    document.getElementById('lkpd-modal-title').textContent = 'Kelola LKPD Pertemuan';
+    ['lkpd-form-id', 'lkpd-form-judul', 'lkpd-form-instruksi', 'lkpd-form-video-url'].forEach((i) => set(i, ''));
+    set('lkpd-form-status', 'Publish');
+    document.getElementById('lkpd-form-kanvas').checked = false;
+    lkpdIsiAktif = '';
   }
-
-  toggleLkpdFormTipe();
+  const st = document.getElementById('lkpd-form-isi-status');
+  if (st) st.textContent = ringkasIsi(lkpdIsiAktif);
 
   document.getElementById('lkpd-modal').classList.remove('hidden');
   document.getElementById('lkpd-modal').classList.add('flex');
@@ -1042,105 +1019,145 @@ export function closeLkpdModal() {
   document.getElementById('lkpd-modal').classList.remove('flex');
 }
 
-export function toggleLkpdFormTipe() {
-  const tipeElem = document.getElementById('lkpd-form-tipe');
-  const pdfCon = document.getElementById('container-lkpd-pdf');
-  const manualCon = document.getElementById('container-lkpd-manual');
+// Simpan LKPD ke server. isiObj = objek isi_json bila ada perubahan isi; null = isi tidak diubah.
+async function simpanLkpdKeServer(isiObj) {
+  const idLama = document.getElementById('lkpd-form-id').value;
+  const lama = cariLkpd(idLama) || {};
+  const payload = {
+    // field lama dipertahankan agar tidak terhapus (save_lkpd menimpa seluruh baris)
+    tipe_lkpd: lama.tipe_lkpd || 'manual',
+    file_pdf_url: lama.file_pdf_url || '',
+    file_drive_id: lama.file_drive_id || '',
+    peta_field_json: typeof lama.peta_field_json === 'object' && lama.peta_field_json ? JSON.stringify(lama.peta_field_json) : (lama.peta_field_json || ''),
+    isi_teks: lama.isi_teks || '',
+    gambar_url: lama.gambar_url || '',
+    soal_json: lama.soal_json || '[]',
+    id_kelas: lama.id_kelas || 'ALL',
+    // field dari form
+    action: 'save_lkpd',
+    id_lkpd: idLama,
+    id_pertemuan: document.getElementById('lkpd-form-pertemuan').value,
+    judul_lkpd: document.getElementById('lkpd-form-judul').value.trim(),
+    instruksi: document.getElementById('lkpd-form-instruksi').value,
+    video_url: document.getElementById('lkpd-form-video-url').value,
+    status: document.getElementById('lkpd-form-status').value,
+    fitur_kanvas: document.getElementById('lkpd-form-kanvas').checked
+  };
+  if (isiObj) payload.isi_json = isiObj;
 
-  if (!tipeElem || !pdfCon || !manualCon) return;
-
-  if (tipeElem.value === 'manual') {
-    pdfCon.classList.add('hidden');
-    manualCon.classList.remove('hidden');
-  } else {
-    pdfCon.classList.remove('hidden');
-    manualCon.classList.add('hidden');
+  const res = await apiPost(payload);
+  if (!res || !res.success) {
+    Swal.fire({ icon: 'error', title: 'Gagal Menyimpan LKPD', text: (res && res.message) || 'Terjadi kesalahan.' });
+    return false;
   }
+
+  const targetId = res.id_lkpd || idLama;
+  document.getElementById('lkpd-form-id').value = targetId;
+  const isiStr = isiObj ? JSON.stringify(isiObj) : (lama.isi_json ? isiLkpdString(lama) : '');
+  lkpdIsiAktif = isiStr;
+  const baru = {
+    ...lama,
+    id_lkpd: targetId,
+    id_pertemuan: payload.id_pertemuan,
+    id_kelas: payload.id_kelas,
+    judul_lkpd: payload.judul_lkpd,
+    tipe_lkpd: isiStr ? 'terstruktur' : payload.tipe_lkpd,
+    instruksi: payload.instruksi,
+    video_url: payload.video_url,
+    status: payload.status,
+    fitur_kanvas: payload.fitur_kanvas ? 'TRUE' : 'FALSE',
+    isi_json: isiStr
+  };
+  if (!Array.isArray(state.cachedData.lkpd)) state.cachedData.lkpd = [];
+  const idx = state.cachedData.lkpd.findIndex((x) => String(x.id_lkpd || x.id) === String(targetId));
+  if (idx !== -1) state.cachedData.lkpd[idx] = baru;
+  else state.cachedData.lkpd.push(baru);
+  await saveToLocalStorage();
+  showToast('success', res.message || 'LKPD tersimpan');
+  return true;
 }
 
 export async function handleLkpdSubmit(e) {
   e.preventDefault();
   const btn = document.getElementById('btn-save-lkpd');
   setButtonLoading(btn, true, '💾 Menyimpan...', '💾 Simpan LKPD');
+  const ok = await simpanLkpdKeServer(null);
+  setButtonLoading(btn, false, '', '💾 Simpan LKPD');
+  if (ok) {
+    closeLkpdModal();
+    switchView('guru-lkpd');
+  }
+}
 
+function formLkpdValid() {
+  const ptm = document.getElementById('lkpd-form-pertemuan').value;
+  const judul = document.getElementById('lkpd-form-judul').value.trim();
+  if (!ptm || !judul) {
+    showToast('warning', 'Isi pertemuan dan judul LKPD dulu.');
+    return false;
+  }
+  return true;
+}
+
+function jalankanEditor(isiAwal, opsi = {}) {
   const idLkpd = document.getElementById('lkpd-form-id').value;
-  const soalArr = document
-    .getElementById('lkpd-form-soal-text')
-    .value.split('\n')
-    .filter((s) => s.trim() !== '');
-
-  let petaFieldVal = document.getElementById('lkpd-form-peta-field')?.value || '';
-
-  if (!petaFieldVal && idLkpd) {
-    const existingLkpd = (state.cachedData.lkpd || []).find(
-      (x) => String(x.id_lkpd || x.id || '').trim() === String(idLkpd).trim()
-    );
-    if (existingLkpd && existingLkpd.peta_field_json) {
-      petaFieldVal = typeof existingLkpd.peta_field_json === 'object'
-        ? JSON.stringify(existingLkpd.peta_field_json)
-        : existingLkpd.peta_field_json;
+  bukaEditorLkpd({
+    idLkpd,
+    judul: document.getElementById('lkpd-form-judul').value.trim(),
+    isi: isiAwal,
+    abaikanDraf: !!opsi.abaikanDraf,
+    onSimpan: async (isiBersih) => {
+      const ok = await simpanLkpdKeServer(isiBersih);
+      if (ok) {
+        const st = document.getElementById('lkpd-form-isi-status');
+        if (st) st.textContent = ringkasIsi(lkpdIsiAktif);
+        closeLkpdModal();
+        switchView('guru-lkpd');
+      }
+      return ok;
     }
-  }
+  });
+}
 
-  if (typeof petaFieldVal === 'object' && petaFieldVal !== null) {
-    petaFieldVal = JSON.stringify(petaFieldVal);
-  }
+export function bukaEditorLkpdDariModal() {
+  if (!formLkpdValid()) return;
+  jalankanEditor(lkpdIsiAktif || null);
+}
 
-  const payload = {
-    action: 'save_lkpd',
-    id_lkpd: idLkpd,
-    id_pertemuan: document.getElementById('lkpd-form-pertemuan').value,
-    judul_lkpd: document.getElementById('lkpd-form-judul').value,
-    tipe_lkpd: document.getElementById('lkpd-form-tipe').value,
-    instruksi: document.getElementById('lkpd-form-instruksi').value,
-    file_pdf_url: document.getElementById('lkpd-form-pdf-url').value,
-    file_drive_id: document.getElementById('lkpd-form-pdf-id').value,
-    peta_field_json: petaFieldVal,
-    isi_teks: document.getElementById('lkpd-form-isi-teks').value,
-    gambar_url: document.getElementById('lkpd-form-gambar-url').value,
-    video_url: document.getElementById('lkpd-form-video-url').value,
-    soal_json: soalArr,
-    fitur_kanvas: document.getElementById('lkpd-form-kanvas').checked
+export function editIsiLkpd(id) {
+  const l = cariLkpd(id);
+  if (!l) return;
+  openLkpdModal(id);
+  jalankanEditor(isiLkpdString(l) || null);
+}
+
+export async function imporPdfLkpd(input) {
+  const file = input.files && input.files[0];
+  input.value = '';
+  if (!file) return;
+  if (!formLkpdValid()) return;
+
+  const lanjut = async () => {
+    showLoading('Membaca PDF...');
+    try {
+      const { isi, info } = await parsePdfKeDraf(file, { lewatiSampul: true });
+      closeLoading();
+      if (!isi.bagian.length) {
+        Swal.fire({ icon: 'warning', title: 'Tidak ada teks terbaca', text: 'PDF mungkin berupa gambar/pindaian. Buka editor dan isi manual.' });
+        return;
+      }
+      showToast('success', `Draf dibuat: ${isi.bagian.length} bagian${info.sampulDilewati ? ' (sampul dilewati)' : ''}. Periksa blok bertanda "perlu dicek".`);
+      jalankanEditor(isi, { abaikanDraf: true });
+    } catch (err) {
+      closeLoading();
+      Swal.fire({ icon: 'error', title: 'Gagal membaca PDF', text: err.message || String(err) });
+    }
   };
 
-  const res = await apiPost(payload);
-
-  setButtonLoading(btn, false, '', '💾 Simpan LKPD');
-  if (res.success) {
-    closeLkpdModal();
-    showToast('success', res.message);
-
-    const targetId = res.id_lkpd || idLkpd || payload.id_lkpd;
-    const newLkpdData = {
-      id_lkpd: targetId,
-      id_pertemuan: payload.id_pertemuan,
-      id_kelas: 'ALL',
-      judul_lkpd: payload.judul_lkpd,
-      tipe_lkpd: payload.tipe_lkpd,
-      instruksi: payload.instruksi,
-      file_pdf_url: payload.file_pdf_url,
-      file_drive_id: payload.file_drive_id,
-      gambar_url: payload.gambar_url,
-      video_url: payload.video_url,
-      soal_json: typeof payload.soal_json === 'object' ? JSON.stringify(payload.soal_json) : payload.soal_json,
-      fitur_kanvas: payload.fitur_kanvas ? 'TRUE' : 'FALSE',
-      status: 'Publish',
-      isi_teks: payload.isi_teks,
-      peta_field_json: payload.peta_field_json
-    };
-
-    if (!Array.isArray(state.cachedData.lkpd)) state.cachedData.lkpd = [];
-    const idx = state.cachedData.lkpd.findIndex((x) => String(x.id_lkpd || x.id) === String(targetId));
-    if (idx !== -1) {
-      state.cachedData.lkpd[idx] = { ...state.cachedData.lkpd[idx], ...newLkpdData };
-    } else {
-      state.cachedData.lkpd.push(newLkpdData);
-    }
-
-    await saveToLocalStorage();
-    switchView('guru-lkpd');
+  if (lkpdIsiAktif) {
+    showConfirm('Ganti isi dengan hasil impor?', 'Isi LKPD yang sudah ada baru terganti saat Anda menekan Simpan di editor.', lanjut, 'Ya, impor');
   } else {
-    Swal.fire({ icon: 'error', title: 'Gagal Menyimpan LKPD', text: res.message });
+    await lanjut();
   }
 }
 
@@ -1786,7 +1803,9 @@ window.handleMateriSubmit = handleMateriSubmit;
 window.deleteMateri = deleteMateri;
 window.openLkpdModal = openLkpdModal;
 window.closeLkpdModal = closeLkpdModal;
-window.toggleLkpdFormTipe = toggleLkpdFormTipe;
+window.bukaEditorLkpdDariModal = bukaEditorLkpdDariModal;
+window.editIsiLkpd = editIsiLkpd;
+window.imporPdfLkpd = imporPdfLkpd;
 window.handleLkpdSubmit = handleLkpdSubmit;
 window.deleteLkpd = deleteLkpd;
 window.openGameModal = openGameModal;

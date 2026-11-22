@@ -1,5 +1,5 @@
 const MEDIA = { web_text: 'Rangkuman Teks', pdf_document: 'Dokumen PDF' };
-const LKPD = { pdf_interaktif: 'PDF Interaktif', manual: 'Pertanyaan Manual' };
+const LKPD = { terstruktur: 'Terstruktur', pdf_interaktif: 'PDF Interaktif', manual: 'Pertanyaan Manual' };
 const GAME = {
   matching: 'Pasangkan',
   drag_drop: 'Seret & Kelompokkan',

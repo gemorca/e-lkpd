@@ -373,8 +373,6 @@
 
       <form onsubmit="handleLkpdSubmit(event)" autocomplete="off" class="space-y-3">
         <input type="hidden" id="lkpd-form-id" />
-        <input type="hidden" id="lkpd-form-pdf-id" />
-        <input type="hidden" id="lkpd-form-peta-field" />
 
         <div class="grid grid-cols-2 gap-2">
           <div>
@@ -382,17 +380,17 @@
             <select id="lkpd-form-pertemuan" required class="w-full p-2.5 rounded-xl border border-slate-300 font-bold"></select>
           </div>
           <div>
-            <label class="block font-bold text-slate-700 mb-1">Tipe LKPD</label>
-            <select id="lkpd-form-tipe" onchange="toggleLkpdFormTipe()" class="w-full p-2.5 rounded-xl border border-slate-300 font-bold text-brand-blue">
-              <option value="pdf_interaktif">📄 Upload PDF (Ekstraksi Teks Interaktif)</option>
-              <option value="manual">📝 Form Pertanyaan Manual</option>
+            <label class="block font-bold text-slate-700 mb-1">Status</label>
+            <select id="lkpd-form-status" class="w-full p-2.5 rounded-xl border border-slate-300 font-bold">
+              <option value="Publish">Publish (tampil untuk siswa)</option>
+              <option value="Draft">Draft (disembunyikan)</option>
             </select>
           </div>
         </div>
 
         <div>
           <label class="block font-bold text-slate-700 mb-1">Judul LKPD</label>
-          <input type="text" id="lkpd-form-judul" autocomplete="off" required placeholder="Contoh: LKPD 1: Identifikasi Masalah STEAM" class="w-full p-2.5 rounded-xl border border-slate-300 font-bold" />
+          <input type="text" id="lkpd-form-judul" autocomplete="off" required placeholder="Contoh: LKPD 1: Perubahan Energi" class="w-full p-2.5 rounded-xl border border-slate-300 font-bold" />
         </div>
 
         <div>
@@ -405,30 +403,15 @@
           <input type="url" id="lkpd-form-video-url" autocomplete="off" placeholder="https://www.youtube.com/watch?v=..." class="w-full p-2.5 rounded-xl border border-slate-300 font-mono text-[11px]" />
         </div>
 
-        <div id="container-lkpd-pdf" class="p-3 bg-blue-50 border border-blue-200 rounded-2xl space-y-2">
-          <label class="block font-bold text-brand-navy">📄 Unggah PDF LKPD & Ekstrak Teks Pembelajaran</label>
-          <input type="file" id="lkpd-form-file-pdf" accept="application/pdf" class="w-full text-[11px] text-slate-500 file:mr-2 file:py-2 file:px-3 file:rounded-xl file:border-0 file:text-[11px] file:font-bold file:bg-blue-100 file:text-brand-blue" />
-          <button type="button" id="btn-upload-pdf-lkpd" onclick="uploadPdfToDrive('lkpd')" class="w-full py-2 bg-brand-blue hover:bg-blue-600 text-white font-bold rounded-xl shadow">
-            📤 Unggah & Ekstrak Teks PDF
-          </button>
-          <input type="text" id="lkpd-form-pdf-url" readonly placeholder="URL Preview PDF..." class="w-full p-2 rounded-xl border bg-slate-100 font-mono text-[10px] text-slate-600" />
-        </div>
-
-        <div id="container-lkpd-manual" class="space-y-3">
-          <div>
-            <label class="block font-bold text-slate-700 mb-1">Konten / Teks Utama LKPD (Hasil Ekstraksi/Teks)</label>
-            <textarea id="lkpd-form-isi-teks" rows="4" placeholder="Konten bacaan LKPD, narasi fenomena sains, atau teks dari PDF..." class="w-full p-2.5 rounded-xl border border-slate-300 font-medium"></textarea>
+        <div class="p-3 bg-blue-50 border border-blue-200 rounded-2xl space-y-2">
+          <div class="font-bold text-brand-navy">Isi LKPD</div>
+          <p id="lkpd-form-isi-status" class="text-[11px] text-slate-600">Belum ada isi.</p>
+          <input type="file" id="lkpd-form-impor-pdf" accept="application/pdf" class="hidden" onchange="imporPdfLkpd(this)" />
+          <div class="grid grid-cols-2 gap-2">
+            <button type="button" onclick="document.getElementById('lkpd-form-impor-pdf').click()" class="py-2 bg-white border border-brand-blue text-brand-blue font-bold rounded-xl hover:bg-blue-50">📄 Impor dari PDF</button>
+            <button type="button" onclick="bukaEditorLkpdDariModal()" class="py-2 bg-brand-blue text-white font-bold rounded-xl shadow">✏️ Buka Editor</button>
           </div>
-
-          <div>
-            <label class="block font-bold text-slate-700 mb-1">URL Gambar Ilustrasi LKPD (Opsional)</label>
-            <input type="url" id="lkpd-form-gambar-url" autocomplete="off" placeholder="https://example.com/gambar-soal.png" class="w-full p-2.5 rounded-xl border border-slate-300 font-mono text-[11px]" />
-          </div>
-
-          <div>
-            <label class="block font-bold text-slate-700 mb-1">Pertanyaan Esai (Pisahkan dengan baris baru Enter)</label>
-            <textarea id="lkpd-form-soal-text" rows="4" placeholder="Pertanyaan 1&#10;Pertanyaan 2&#10;Pertanyaan 3" class="w-full p-2.5 rounded-xl border border-slate-300 font-medium"></textarea>
-          </div>
+          <p class="text-[10px] text-slate-500">PDF hanya dibaca di perangkat ini untuk membuat draf; file PDF tidak disimpan.</p>
         </div>
 
         <div class="p-3 bg-purple-50 border border-purple-200 rounded-2xl flex items-center justify-between">

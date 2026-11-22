@@ -137,6 +137,11 @@ export async function requestOcrFallback(fileId) {
 
 export async function uploadPdfToDrive(targetModule = 'materi') {
   const isLkpd = targetModule === 'lkpd';
+  if (isLkpd) {
+    // LKPD kini terstruktur (Tahap 2): PDF hanya diimpor lewat editor, tidak diunggah ke Drive.
+    showToast('warning', 'Gunakan tombol "Impor dari PDF" di form LKPD.');
+    return;
+  }
   const fileInput = document.getElementById(isLkpd ? 'lkpd-form-file-pdf' : 'materi-form-file-pdf');
   const btn = document.getElementById(isLkpd ? 'btn-upload-pdf-lkpd' : 'btn-upload-pdf');
 
