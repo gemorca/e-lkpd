@@ -1,7 +1,7 @@
-const CACHE_VERSION = 'v25';
+const CACHE_VERSION = 'v26';
 const SHELL_CACHE = `elkpd-steam-shell-${CACHE_VERSION}`;
 const RUNTIME_CACHE = `elkpd-steam-runtime-${CACHE_VERSION}`;
-const GAS_API_URL = 'https://script.google.com/macros/s/AKfycbyH-b382jjcxDA6OGWfmW-AeBcQs-6I-LO3H5vBOWN1FDb1NmmpJFi561mbm26H3obF5w/exec';
+const GAS_API_URL = 'https://script.google.com/macros/s/AKfycbww0nA5xLOX5_xqLFGZIVwescJJ4--CQXVeoU_uV9vjOu1JMECYlk807QjidCwFkvLc_Q/exec';
 
 const SHELL_ASSETS = [
     './',
@@ -17,12 +17,10 @@ const SHELL_ASSETS = [
     './js/state.js',
     './js/components/canvas-steam.js',
     './js/components/drawer.js',
-    './js/components/field-map-editor.js',
     './js/components/lkpd-editor.js',
     './js/components/lkpd-render.js',
     './js/components/modal.js',
     './js/components/pdf-crop.js',
-    './js/components/pdf-overlay.js',
     './js/components/ptm-tabs.js',
     './js/components/sound.js',
     './js/games/drag-drop.js',
@@ -33,12 +31,6 @@ const SHELL_ASSETS = [
     './js/games/simulator.js',
     './js/games/word-search.js',
     './js/services/api.js',
-    './js/services/auto-detect.js',
-    './js/services/detectors/dotted-lines.js',
-    './js/services/detectors/table-cells.js',
-    './js/services/detectors/labeler.js',
-    './js/services/detectors/merger.js',
-    './js/services/ocr-labels.js',
     './js/services/nilai.js',
     './js/services/html.js',
     './js/services/match.js',

@@ -7,7 +7,6 @@ import './services/ocr.js';
 import './components/modal.js';
 import './components/drawer.js';
 import './components/canvas-steam.js';
-import './components/pdf-overlay.js';
 import './components/sound.js';
 import './games/drag-drop.js';
 import './games/matching.js';

@@ -77,7 +77,7 @@ Baris submissions untuk LKPD: `tipe_sub='lkpd'`, `id_game = id_lkpd`, `id_pertem
 
 Catatan implementasi:
 - `submit_lkpd` dikunci dengan `LockService` lewat `handleQueuedAction` (jika ada `queue_id`) atau `denganKunci_` (jika tidak).
-- LKPD tanpa `isi_json` jatuh ke `handleSubmitLkpdLama_` (perilaku lama). Hapus di Tahap 5.
+- LKPD tanpa `isi_json`: `submit_lkpd` kini gagal dengan pesan "LKPD belum disiapkan oleh guru." (`handleSubmitLkpdLama_` dihapus di Tahap 5).
 - `handlePdfUpload` tidak lagi menjalankan OCR otomatis (dulu OCR bisa jalan dua kali). OCR kini hanya lewat aksi `ocr_pdf_drive`. `extractTextFromPdfBlob` dihapus. Respons `extractedText` tetap ada tetapi selalu kosong.
 
 ## 6. Status tahap
@@ -88,10 +88,10 @@ Catatan implementasi:
 | 2 | Parser PDF dan editor guru | SELESAI (zip `tahap-2-parser-editor`). Lulus uji logika parser (data tiruan) dan uji editor di Chromium (tambah/ubah/hapus blok, tabel, validasi, simpan, draf). BELUM diuji dengan PDF contoh Canva asli dan Apps Script sungguhan. |
 | 3 | Sisi siswa, koreksi guru, Buka Kembali | SELESAI (zip `tahap-3-sisi-siswa`). Lulus uji di Chromium (data tiruan): form siswa, draf, kirim, mode baca, Buka Kembali, kirim ulang, koreksi guru, mode guru dan tamu. BELUM diuji dengan Apps Script sungguhan dan HP asli. `Kode.gs` TIDAK berubah. |
 | 4 | Alat Potong dari PDF | SELESAI (zip `tahap-4-potong-pdf`). Lulus uji di Chromium (pdf.js 6.2 lokal, PDF tiruan 2 halaman, mouse): potong, unggah, pasang ke soal/item/sel tabel, pindah halaman, zoom. BELUM diuji dengan PDF Canva asli, sentuhan di HP asli, dan Apps Script sungguhan. `Kode.gs` TIDAK berubah. |
-| 5 | Pembersihan kode lama | BELUM |
+| 5 | Pembersihan kode lama | SELESAI (zip `tahap-5-pembersihan`). Lihat "Hasil Tahap 5". Menunggu konfirmasi pengguna sebelum Tahap 6. |
 | 6 | Tampilan (CSS, HP) | BELUM |
 
-Penyimpangan dari rencana awal (disengaja): aksi lama `save_field_map_lkpd`, `submit_lkpd_isian`, `get_jawaban_lkpd_isian`, serta `QUEUED_ACTIONS.submit_lkpd_isian` TIDAK dihapus di Tahap 1 supaya aplikasi lama tetap jalan selama frontend belum diganti. Hapus semuanya di Tahap 5.
+Penyimpangan dari rencana awal (disengaja): aksi lama `save_field_map_lkpd`, `submit_lkpd_isian`, `get_jawaban_lkpd_isian`, serta `QUEUED_ACTIONS.submit_lkpd_isian` tidak dihapus di Tahap 1 supaya aplikasi lama tetap jalan. Sudah dihapus di Tahap 5 (kecuali stub `submit_lkpd_isian`, lihat Hasil Tahap 5).
 
 ## 7. Rencana tahap berikutnya
 
@@ -159,12 +159,24 @@ Berkas baru: `js/components/pdf-crop.js`. Berkas diubah: `js/components/lkpd-edi
 - Belum diuji: PDF Canva asli (vektor besar), seret dengan jari di HP, PDF sangat besar (memori HP), unggah sungguhan ke Drive.
 - Catatan: pada uji, Tailwind CDN tidak ada (jaringan diblokir), jadi tata letak diuji dengan CSS minimal. Cek tampilan sungguhan di Tahap 6.
 
-### Tahap 5. Pembersihan
+### Tahap 5. Pembersihan (SELESAI, ringkasan di Hasil Tahap 5)
 - Cek impor (grep) sebelum menghapus: `js/components/pdf-overlay.js`, `js/components/field-map-editor.js`, `js/services/auto-detect.js`, `js/services/detectors/*`, `js/services/ocr-labels.js`. Pastikan materi dan game (misalnya hotspot) tidak memakainya.
 - Bersihkan modal fullscreen LKPD dan peta isian di `index.html`, binding `window.*` di `main.js` dan `drawer.js`, aturan CSS overlay, `parseQuestionsFromText` dan cabang `isLkpd` di `ocr.js`.
 - `lkpd.js` tidak lagi mengimpor `pdf-overlay.js`; `drawer.js` juga tidak (dibersihkan di Tahap 3). Tetap cek impor lain sebelum menghapus.
 - WAJIB: perbarui daftar pra-cache di `sw.js` (file yang dihapus harus keluar dari daftar, kalau tidak instalasi service worker gagal). Naikkan `CACHE_VERSION`. Perbarui README.
 - Backend: hapus `save_field_map_lkpd`, `submit_lkpd_isian`, `get_jawaban_lkpd_isian`, `handleSubmitLkpdLama_`, dan entri terkait di `ACTION_RULES`, `ACTION_SHEETS`, `QUEUED_ACTIONS`, `routePost_`, `handleQueuedAction`. Sebelum itu pastikan frontend tidak lagi memanggilnya.
+
+### Hasil Tahap 5 (SELESAI)
+Frontend dihapus: `js/components/pdf-overlay.js`, `js/components/field-map-editor.js`, `js/services/auto-detect.js`, `js/services/detectors/*`, `js/services/ocr-labels.js`. Grep sebelum hapus: hanya `main.js` yang mengimpor `pdf-overlay.js`; hotspot, materi, game tidak memakai file yang dihapus.
+- `main.js`: impor `pdf-overlay.js` dibuang. `index.html`: modal `#lkpd-fullscreen-modal` dibuang.
+- `css/style.css`: semua aturan overlay dibuang (`.lkpd-fill-input*`, `.lkpd-sheet*`, `#lkpd-fullscreen-*`, `.lkpd-fullscreen-page-wrap`, kanvas `#siswa-lkpd-pages` dan `#desktop-lkpd-pages`, serta rujukan di media query).
+- `ocr.js`: `isValidPdfBuffer`, `base64ToArrayBuffer`, `fetchPdfArrayBuffer`, `parseQuestionsFromText` dan cabang `isLkpd` dibuang. Jalur materi, `extractTextFromPdfClientSide`, `requestOcrFallback` tetap.
+- `api.js`: reset modal peta field di `handleAuthExpired` dibuang; `submit_lkpd_isian` keluar dari daftar antrean. `pull-refresh.js`: pemeriksaan modal peta field dibuang. `state.js`: field `uiState` khusus guru/overlay dibuang (field kanvas STEAM tetap).
+- `sw.js`: file terhapus keluar dari SHELL_ASSETS, `CACHE_VERSION` = `v26`.
+- Backend `Kode.gs`: dihapus `save_field_map_lkpd`, `get_jawaban_lkpd_isian`, `handleSubmitLkpdLama_`, `handleSaveFieldMapLkpd`, `handleSubmitLkpdIsian`, `handleGetJawabanLkpdIsian` beserta entri `ACTION_RULES`, `ACTION_SHEETS`, `QUEUED_ACTIONS`, `routePost_`, `handleQueuedAction`. `handleSubmitLkpd` tanpa `isi_json` kini menolak.
+- STUB sengaja: `submit_lkpd_isian` masih ada di `ACTION_RULES` (grace) dan `routePost_`, hanya mengembalikan `{success:true, deprecated:true}` supaya kiriman lama di outbox HP siswa tuntas dan tidak macet. Boleh dihapus kelak bila yakin tidak ada antrean lama.
+- Dibiarkan: `get_pdf_base64` di backend (kini tidak dipakai frontend, aman dihapus belakangan). Penanganan `lkpd_isian` di `nilai.js`, `progress.js`, `guru.js` dipertahankan untuk membaca jawaban lama. Kolom `peta_field_json` di sheet lkpd tidak disentuh.
+- Uji: semua `.js` lolos `node --check`, `Kode.gs` lolos parse, semua impor relatif terselesaikan, semua berkas SHELL_ASSETS ada (ikon biner tidak ada di repomix), grep tidak menemukan rujukan tersisa. BELUM diuji di browser/Apps Script sungguhan: pengguna perlu deploy ulang Kode.gs (versi baru) dan cek form siswa, editor guru, dan impor PDF masih jalan.
 
 ### Tahap 6. Tampilan
 Form LKPD nyaman di HP (tabel menjadi kartu di layar kecil: gambar di atas, isian di bawah), progress bar, tombol kirim melayang, banner Buka Kembali, polesan editor guru dan alat potong. Uji dari 360 px sampai desktop.

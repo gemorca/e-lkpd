@@ -39,11 +39,6 @@ export async function handleAuthExpired(message) {
     state.authToken = null;
     state.currentUser = null;
     clearSessionState();
-    const fm = document.getElementById('lkpd-field-map-modal');
-    if (fm) {
-      fm.classList.add('hidden');
-      fm.classList.remove('flex');
-    }
     await resetCachedData();
     updateUIForAuthenticatedUser();
     switchView('home');
@@ -196,7 +191,7 @@ export async function apiPost(payload) {
     payload = { ...payload, token: state.authToken };
   }
 
-  const isSubmissionAction = ['submit_lkpd', 'submit_game', 'submit_lkpd_isian', 'save_review', 'submit_evaluasi'].includes(payload.action);
+  const isSubmissionAction = ['submit_lkpd', 'submit_game', 'save_review', 'submit_evaluasi'].includes(payload.action);
 
   if (isSubmissionAction) {
     const queueId = 'QUEUE_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);

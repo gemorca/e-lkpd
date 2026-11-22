@@ -82,8 +82,6 @@ function isBlocked() {
   if (busy) return true;
   if (Date.now() - lastRun < MIN_GAP_MS) return true;
   if (window.Swal && Swal.isVisible()) return true;
-  const fm = document.getElementById('lkpd-field-map-modal');
-  if (fm && !fm.classList.contains('hidden')) return true;
   const drawer = document.getElementById('main-drawer');
   if (drawer && !drawer.classList.contains('-translate-x-full') && window.innerWidth < 768) return true;
   try {

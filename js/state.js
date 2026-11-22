@@ -30,22 +30,7 @@ export const uiState = {
   stCanvasCtx: null,
   stLineWidth: 5,
   stPenColor: '#0B2545',
-  stUndoStack: [],
-  fieldsByPageGuru: {},
-  fieldCounterGuru: 1,
-  currentPageGuru: 1,
-  currentPdfDocGuru: null,
-  totalPagesGuru: 1,
-  renderScaleGuru: 1.0,
-  currentActiveLkpdContext: {},
-  activeLkpdFitMode: 'fit',
-  activeLkpdScale: 1.0,
-  selectedFieldGuru: null,
-  zoomGuru: 1,
-  modeGuru: 'draw',
-  dirtyGuru: false,
-  autoDetectRunningGuru: false,
-  autoDetectCancelGuru: false
+  stUndoStack: []
 };
 
 export function saveSessionState() {

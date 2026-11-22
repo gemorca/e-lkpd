@@ -43,7 +43,7 @@ Aplikasi berjalan sepenuhnya di browser dengan **JavaScript ES Module tanpa pros
 
 ### Untuk Guru
 - **Kelola konten**: pertemuan modul, bahan ajar, LKPD, game interaktif, serta evaluasi dan bank soal.
-- **Pemetaan kolom isian PDF**: tandai area jawaban di atas dokumen PDF untuk membuat LKPD interaktif.
+- **LKPD terstruktur**: guru mengimpor PDF ke editor teks (bagian, teks, gambar, soal, tabel), siswa mengisi form teks.
 - **OCR PDF**: ekstrak teks dari PDF, dengan cadangan OCR di server bila teks tidak terbaca.
 - **Koreksi LKPD dan nilai**: nilai jawaban siswa dan beri ulasan.
 - **Buku nilai dan rekapitulasi**, dapat diekspor ke **CSV**.
@@ -87,7 +87,9 @@ Aplikasi berjalan sepenuhnya di browser dengan **JavaScript ES Module tanpa pros
     │   ├── drawer.js          # Navigasi samping dan perpindahan tampilan
     │   ├── modal.js           # Modal, toast, login, dan logout
     │   ├── canvas-steam.js    # Kanvas gambar
-    │   ├── pdf-overlay.js     # Lapisan isian di atas PDF
+    │   ├── lkpd-editor.js     # Editor LKPD terstruktur (guru)
+    │   ├── lkpd-render.js     # Render isi LKPD
+    │   ├── pdf-crop.js        # Alat potong gambar dari PDF
     │   └── sound.js           # Efek suara
     ├── games/                 # drag-drop, matching, quiz-speed, simulator,
     │                          # sequencer, word-search, hotspot
@@ -155,13 +157,13 @@ Isi permintaan berupa JSON dengan bidang `action`. Respons berupa `{ "success": 
 |---|---|
 | Sesi | `login` |
 | Pengguna dan kelas | `add_user`, `delete_user`, `save_kelas`, `delete_kelas` |
-| Konten | `save_pertemuan`, `delete_pertemuan`, `save_materi`, `delete_materi`, `save_lkpd`, `delete_lkpd`, `save_game`, `delete_game`, `save_field_map_lkpd`, `upload_pdf` |
+| Konten | `save_pertemuan`, `delete_pertemuan`, `save_materi`, `delete_materi`, `save_lkpd`, `delete_lkpd`, `save_game`, `delete_game`, `upload_pdf` |
 | Evaluasi | `save_evaluasi`, `save_soal_evaluasi`, `delete_soal_evaluasi`, `submit_evaluasi` |
-| Jawaban siswa | `submit_lkpd`, `submit_lkpd_isian`, `submit_game`, `get_jawaban_lkpd_isian` |
+| Jawaban siswa | `submit_lkpd`, `submit_game` |
 | Penilaian | `grade_submisi`, `save_review` |
 | OCR | `ocr_pdf_drive` |
 
-Aksi `submit_lkpd`, `submit_lkpd_isian`, `submit_game`, dan `save_review` melewati **antrean outbox**: disimpan dulu di IndexedDB, lalu dikirim ke server oleh service worker.
+Aksi `submit_lkpd`, `submit_game`, dan `save_review` melewati **antrean outbox**: disimpan dulu di IndexedDB, lalu dikirim ke server oleh service worker.
 
 > Bentuk data setiap aksi dapat dilihat dari pemanggilan `apiPost` di `js/views/` dan `js/components/`.
 
