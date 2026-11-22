@@ -1,12 +1,12 @@
 // Editor isi LKPD terstruktur (modal layar penuh) untuk guru.
 // Kontrak data: lihat Point.md (isi_json versi 1).
-// Catatan: pratinjau di sini adalah render baca-saja milik editor; renderer siswa
-// yang sebenarnya dibuat di Tahap 3.
+// Pratinjau memakai renderer siswa (js/components/lkpd-render.js), mode 'pratinjau'.
 
 import { apiPost } from '../services/api.js';
 import { escapeHtml, jsArg, safeUrl } from '../services/html.js';
 import { showToast, showConfirm } from './modal.js';
 import { buatIdAcak } from '../services/lkpd-parser.js';
+import { renderIsiLkpd } from './lkpd-render.js';
 
 const MAKS_JSON = 45000;
 const MAKS = { bagian: 50, blok: 100, kolom: 10, baris: 50, isian: 500, gambar: 20 };
@@ -392,25 +392,9 @@ function renderBagian(b, i, n) {
     </section>`;
 }
 
-/* pratinjau baca-saja (renderer siswa sungguhan = Tahap 3) */
+/* pratinjau: renderer siswa, kotak jawaban kosong */
 function renderPratinjau(isi) {
-  return (isi.bagian || []).map((b) => `
-    <section class="bg-white rounded-3xl border p-4 space-y-3">
-      <h3 class="font-black text-brand-navy text-base">${escapeHtml(b.judul)}</h3>
-      ${b.petunjuk ? `<p class="text-slate-600 italic">${escapeHtml(b.petunjuk)}</p>` : ''}
-      ${b.blok.map((k) => {
-        if (k.tipe === 'teks') return `<p class="whitespace-pre-line">${escapeHtml(k.isi)}</p>`;
-        if (k.tipe === 'gambar') return `<div class="flex flex-wrap gap-3">${k.item.map((g) => `<figure class="w-40">${safeUrl(g.url) ? `<img src="${escapeHtml(g.url)}" alt="" class="w-full rounded-lg border">` : '<div class="h-24 border border-dashed rounded-lg grid place-items-center text-slate-400">gambar</div>'}${g.caption ? `<figcaption class="text-[10px] text-slate-500">${escapeHtml(g.caption)}</figcaption>` : ''}</figure>`).join('')}</div>`;
-        if (k.tipe === 'soal') return `<div class="space-y-1"><p class="font-bold">${escapeHtml(k.label)}</p>${k.gambar && safeUrl(k.gambar.url) ? `<img src="${escapeHtml(k.gambar.url)}" alt="" class="max-w-[200px] rounded-lg border">` : ''}<div class="border rounded-lg bg-slate-50" style="height:${(Number(k.baris) || 3) * 1.6}rem"></div></div>`;
-        if (k.tipe === 'tabel') return `<div class="overflow-x-auto"><table class="border-collapse text-[11px]"><thead><tr>${k.kolom.map((c) => `<th class="border p-1.5 bg-slate-100">${escapeHtml(c.judul)}</th>`).join('')}</tr></thead><tbody>${k.baris.map((r) => `<tr>${k.kolom.map((c) => {
-          const s = r.sel[c.id] || {};
-          if (s.jenis === 'gambar') return `<td class="border p-1.5">${safeUrl(s.nilai) ? `<img src="${escapeHtml(s.nilai)}" alt="" class="w-16 h-16 object-cover rounded">` : ''}</td>`;
-          if (s.jenis === 'isian') return `<td class="border p-1.5 bg-slate-50 text-slate-300">…</td>`;
-          return `<td class="border p-1.5">${escapeHtml(s.nilai || '')}</td>`;
-        }).join('')}</tr>`).join('')}</tbody></table></div>`;
-        return '';
-      }).join('')}
-    </section>`).join('');
+  return renderIsiLkpd(isi, { mode: 'pratinjau' });
 }
 
 function render() {

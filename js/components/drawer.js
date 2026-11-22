@@ -1,5 +1,4 @@
 import { initStandaloneSteamCanvas } from '../components/canvas-steam.js';
-import { renderLkpdUntukSiswa } from '../components/pdf-overlay.js';
 import { initPointerDragAndDropEngine } from '../games/drag-drop.js';
 import { initMatchingLineEngine, redrawAllMatchingLines } from '../games/matching.js';
 import { fetchAllInitialData } from '../services/api.js';
@@ -286,14 +285,8 @@ export async function switchView(viewId, paramId = null) {
         const lkpdView = await loadLkpdView();
       viewport.innerHTML = renderPertemuanTabs(paramId, viewId) + (lkpdView ? lkpdView.renderLkpdView(paramId) : renderLkpdMissing());
         setTimeout(() => {
-          const lkpdObj = (state.cachedData.lkpd || []).find((l) => sama(l.id_pertemuan, paramId) && isPublish(l.status));
-          const overlayContainer = document.getElementById('siswa-lkpd-overlay-container');
-          if (lkpdObj && lkpdObj.peta_field_json && overlayContainer) {
-            renderLkpdUntukSiswa(overlayContainer, lkpdObj, paramId);
-          }
-          const qCount = document.querySelectorAll(`[id^="lkpd-ans-"]`).length;
-          if (lkpdView && typeof lkpdView.loadLkpdDraft === 'function') lkpdView.loadLkpdDraft(paramId, qCount);
-        }, 150);
+          if (lkpdView && typeof lkpdView.inisiasiLkpd === 'function') lkpdView.inisiasiLkpd(paramId);
+        }, 0);
         break;
 
       case 'game-ptm':

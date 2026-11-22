@@ -86,7 +86,7 @@ Catatan implementasi:
 |---|---|---|
 | 1 | Backend `Kode.gs` | SELESAI (zip `tahap-1-backend`). Lulus 32 + 10 uji logika. BELUM diuji di Apps Script sungguhan: pengguna perlu deploy dan menjalankan uji manual di `CARA-PASANG.md`. |
 | 2 | Parser PDF dan editor guru | SELESAI (zip `tahap-2-parser-editor`). Lulus uji logika parser (data tiruan) dan uji editor di Chromium (tambah/ubah/hapus blok, tabel, validasi, simpan, draf). BELUM diuji dengan PDF contoh Canva asli dan Apps Script sungguhan. |
-| 3 | Sisi siswa, koreksi guru, Buka Kembali | BELUM |
+| 3 | Sisi siswa, koreksi guru, Buka Kembali | SELESAI (zip `tahap-3-sisi-siswa`). Lulus uji di Chromium (data tiruan): form siswa, draf, kirim, mode baca, Buka Kembali, kirim ulang, koreksi guru, mode guru dan tamu. BELUM diuji dengan Apps Script sungguhan dan HP asli. `Kode.gs` TIDAK berubah. |
 | 4 | Alat Potong dari PDF | BELUM |
 | 5 | Pembersihan kode lama | BELUM |
 | 6 | Tampilan (CSS, HP) | BELUM |
@@ -108,7 +108,7 @@ Berkas: `js/services/lkpd-parser.js` (baru), `js/components/lkpd-editor.js` (bar
 Berkas baru: `js/services/lkpd-parser.js`, `js/components/lkpd-editor.js`. Berkas diubah: `js/views/guru.js`, `index.html` (modal `#lkpd-modal`), `js/services/ocr.js`, `js/services/labels.js` (label "Terstruktur"), `sw.js` (`CACHE_VERSION` v23, dua berkas baru masuk `SHELL_ASSETS`). `Kode.gs` TIDAK berubah.
 - Parser: `parsePdfKeDraf(file, {lewatiSampul})` (pdf.js, hanya di browser, PDF tidak dikirim ke mana pun) dan fungsi murni `bangunDrafDariHalaman(halaman, opsi)` untuk uji. Mengembalikan `{isi, info}`. Blok otomatis bertanda `_cek: true`; ID acak (`s…` bagian, `b…` blok, `k…` kolom, `r…` baris). Halaman bergambar raster menambah blok gambar kosong (URL harus diunggah guru). Tabel draf: 3 baris, semua sel isian. Soal: `baris=3`.
 - Editor: `bukaEditorLkpd({idLkpd, judul, isi, abaikanDraf, onSimpan})`; `onSimpan(isiBersih)` harus mengembalikan `true` jika sukses. Modal dibuat dinamis (`#lkpd-editor-modal`, z-60), handler lewat `window.lkpdEd`. Penanda `_cek` dibuang sebelum simpan. Validasi: `validasiEditor(isi)`. Draf localStorage kunci `lkpd_editor_draf_<idLkpd|baru>`, dihapus setelah simpan berhasil.
-- Pratinjau di editor memakai render baca-saja bawaan editor, BUKAN renderer siswa (belum ada). Ganti ke renderer siswa mode baca di Tahap 3.
+- Pratinjau di editor semula memakai render bawaan editor. SUDAH diganti ke renderer siswa (`lkpd-render.js`, mode `pratinjau`) di Tahap 3.
 - `guru.js`: alur `simpanLkpdKeServer(isiObj|null)` dipakai tombol Simpan modal (isi tidak diubah, `isi_json` tidak dikirim sehingga nilai lama dipertahankan) dan tombol Simpan editor (kirim `isi_json`). Field lama (`file_pdf_url`, `peta_field_json`, `isi_teks`, `soal_json`, dst.) dikirim ulang dari data tersimpan agar tidak terhapus. Daftar LKPD: "Petakan Field" diganti "Edit Isi". Impor PDF menanyakan konfirmasi bila LKPD sudah punya isi; isi lama baru terganti saat Simpan di editor.
 - `ocr.js`: `uploadPdfToDrive('lkpd')` kini hanya menampilkan peringatan (cabang lama dihapus penuh di Tahap 5). `field-map-editor.js`/`pdf-overlay.js` masih ada tetapi tidak dipanggil dari daftar LKPD.
 - Catatan: kolom `baris` pada blok `soal` adalah angka (tinggi kotak), pada `tabel` adalah daftar. Kode yang menelusuri ID harus memeriksa `tipe` dulu.
@@ -123,6 +123,24 @@ Berkas: `js/views/lkpd.js` (tulis ulang), `js/views/guru.js`, `js/services/api.j
 - Koreksi: label dari `isi_json` (judul bagian, label soal, "Baris n, kolom X" untuk tabel), urut sesuai dokumen, dengan gambar pendukung. Blok yang sudah dihapus: "(blok dihapus)". Jawaban lama `lkpd_isian` tampil sebagai pasangan kunci dan nilai, tanpa kode overlay.
 - Uji: alur penuh; kirim ganda online dan offline; salah kirim lalu Buka Kembali lalu kirim ulang; siswa kelas lain tidak melihat; mode tamu.
 
+### Hasil Tahap 3 (SELESAI)
+Berkas baru: `js/components/lkpd-render.js` (renderer bersama). Berkas diubah: `js/views/lkpd.js` (tulis ulang), `js/views/guru.js`, `js/components/drawer.js`, `js/components/lkpd-editor.js` (pratinjau), `js/services/progress.js`, `js/services/nilai.js`, `sw.js` (`CACHE_VERSION` v24, `lkpd-render.js` masuk `SHELL_ASSETS`). `Kode.gs` dan `api.js` TIDAK berubah.
+
+- `lkpd-render.js`: `parseIsiLkpd(raw)`, `daftarIsian(isi)` (semua kolom isian urut dokumen: `{kunci, idBagian, bagian, label, gambar}`; label tabel "Baris n, kolom X"), `kunciSel`, `renderIsiLkpd(isi, {mode, jawaban})` dengan mode `isi` (textarea `maxlength=1000`, atribut `data-lkpd-kunci`), `baca` (jawaban teks), `pratinjau` (kotak kosong), `perbesarGambar` (juga `window.lkpdPerbesar`, hanya URL https, Esc atau ketuk untuk tutup). Semua teks di-escape. Tabel masih `overflow-x-auto` (jadi kartu di HP = Tahap 6).
+- `lkpd.js`: `renderLkpdView(ptmId)` membungkus isi dalam `#lkpd-root`; `inisiasiLkpd(ptmId)` dipanggil `drawer.js` setelah HTML dipasang (pasang listener, penghitung "terisi X dari Y", pulihkan draf, rapikan penanda). Kartu identitas dari akun. Tanpa `isi_json`: "LKPD belum disiapkan oleh guru." Guru/admin melihat pratinjau tanpa tombol kirim. Tamu bisa mengisi, kirim meminta login.
+- Draf: kunci `<CACHE_KEY>_DRAFT_LKPD_<idLkpd>_<username>` (cocok dengan `migrateGuestDrafts`), objek datar `{kunci: teks}`, debounce 400 ms, simpan langsung saat `change`. Dihapus saat kirim berhasil. Draf lama berkunci `_DRAFT_<ptmId>_` tidak dipakai lagi.
+- Kirim: hanya kolom terisi yang dikirim (`jawaban_json` objek datar). Konfirmasi menyebut jumlah kolom kosong. Minimal satu kolom terisi. Batas 45.000 karakter dicek di klien.
+- `progress.js` (sumber kebenaran status LKPD siswa): `keadaanLkpd(idLkpd)` mengembalikan `{keadaan:'kosong'|'dibuka'|'terkirim', sub, marker}`; `submisiLkpdSaya`, `bacaKirimLkpd`, `simpanKirimLkpd`, `hapusKirimLkpd`. Centang LKPD di tab pertemuan kini memakai `keadaanLkpd`, jadi status `Dibuka Kembali` tidak lagi dihitung selesai.
+- PENTING: `apiPost` SELALU mengantrekan `submit_lkpd` ke outbox, jadi klien selalu menerima `{queued:true}` dan tidak pernah melihat `duplicate`/`ulang` dari server (cabang `res.duplicate` tetap ada untuk jaga-jaga). Karena server terlambat tahu, klien menyimpan penanda lokal `<CACHE_KEY>_LKPD_KIRIM_<idLkpd>_<username>` = `{jawaban, waktu, dasarTs}`. Selama penanda ada dan server belum punya submisi, tampil mode baca "menunggu terkirim".
+- Buka Kembali di sisi siswa: submisi server berstatus `Dibuka Kembali` -> form dengan jawaban lama (draf lokal didahulukan bila ada) + banner kuning. Saat kirim ulang, penanda menyimpan `dasarTs` = timestamp submisi di server saat itu. Selama server masih menampilkan timestamp yang sama dan status `Dibuka Kembali`, tampil mode baca (kirim ulang belum diproses). Setelah server memproses (status `Belum Dinilai`, timestamp baru), penanda dibuang otomatis (`rapikanPenanda`).
+- Penanda basi: tanpa submisi di server, lebih tua dari 10 menit, dan outbox kosong -> dibuang (misalnya guru menghapus submisi). Siswa lalu bisa mengisi lagi.
+- Mode baca menampilkan tanggal kirim, nilai dan catatan guru bila sudah dinilai, dan bagian "Jawaban lain" untuk kunci yang tidak ada di `isi_json` (format lama).
+- `guru.js`: tombol "Buka Kembali" (amber) di samping Hapus pada kartu submisi bila `tipe_sub==='lkpd'` dan status belum `Dibuka Kembali`; konfirmasi menjelaskan jawaban tidak dihapus dan nilai lama dikosongkan saat siswa kirim ulang; panggil `buka_kembali_submisi`; label status "Dibuka Kembali" berlencana amber. Koreksi LKPD (`htmlJawabanLkpd`): dikelompokkan per bagian, label dari `isi_json`, gambar pendukung bisa diperbesar, kunci yatim berlabel "(blok dihapus)", jawaban `lkpd_isian` lama atau LKPD tanpa `isi_json` tampil sebagai pasangan kunci dan nilai. Kotak daftar jawaban di modal koreksi dilebarkan ke `max-h-[55vh]`.
+- `nilai.js`: `getNilaiSubmisi` mengembalikan `null` untuk status `Dibuka Kembali` (sebelumnya skor otomatis 0 terhitung sebagai nilai 0). Nilai guru yang sudah ada (`nilai_esai`) tetap terbaca sampai siswa kirim ulang.
+- `drawer.js`: cabang `lkpd-ptm` kini hanya memanggil `inisiasiLkpd`; impor `renderLkpdUntukSiswa` dari `pdf-overlay.js` dihapus (file `pdf-overlay.js` sendiri dihapus di Tahap 5).
+- Uji Chromium (data tiruan, jaringan diblokir): 4 kolom isian terbentuk (soal + 2 sel tabel + soal bagian 2), progres 0 -> 2 dari 4, draf pulih, zoom gambar buka/tutup, kirim -> mode baca + penanda + draf terhapus + outbox 1, server memberi submisi -> penanda dibuang, `Dibuka Kembali` -> form terisi + centang tab belum selesai, kirim ulang -> mode baca, server memproses -> penanda dibuang, guru melihat pratinjau, tamu melihat form. Koreksi guru: label, escape HTML, kunci yatim, format lama, tombol Buka Kembali muncul tepat pada submisi LKPD yang belum dibuka.
+- Belum diuji: Apps Script sungguhan, outbox `sw.js` yang benar-benar terkirim, gambar Drive di HP, kelas lain dan siswa lain (filter ada di backend). Uji manual di bagian 11.
+
 ### Tahap 4. Potong dari PDF
 Berkas: `js/components/pdf-crop.js` (baru), disambungkan ke editor.
 - Render halaman PDF di canvas (navigasi, zoom), kotak seleksi dengan pointer events (mouse dan sentuh), pratinjau, konfirmasi. Hasil JPEG kualitas 0,85, latar putih, lebar maks 1.000 px, kirim lewat `upload_image`, URL masuk ke blok atau item gambar aktif. Alat tetap terbuka untuk potongan berikutnya.
@@ -131,6 +149,7 @@ Berkas: `js/components/pdf-crop.js` (baru), disambungkan ke editor.
 ### Tahap 5. Pembersihan
 - Cek impor (grep) sebelum menghapus: `js/components/pdf-overlay.js`, `js/components/field-map-editor.js`, `js/services/auto-detect.js`, `js/services/detectors/*`, `js/services/ocr-labels.js`. Pastikan materi dan game (misalnya hotspot) tidak memakainya.
 - Bersihkan modal fullscreen LKPD dan peta isian di `index.html`, binding `window.*` di `main.js` dan `drawer.js`, aturan CSS overlay, `parseQuestionsFromText` dan cabang `isLkpd` di `ocr.js`.
+- `lkpd.js` tidak lagi mengimpor `pdf-overlay.js`; `drawer.js` juga tidak (dibersihkan di Tahap 3). Tetap cek impor lain sebelum menghapus.
 - WAJIB: perbarui daftar pra-cache di `sw.js` (file yang dihapus harus keluar dari daftar, kalau tidak instalasi service worker gagal). Naikkan `CACHE_VERSION`. Perbarui README.
 - Backend: hapus `save_field_map_lkpd`, `submit_lkpd_isian`, `get_jawaban_lkpd_isian`, `handleSubmitLkpdLama_`, dan entri terkait di `ACTION_RULES`, `ACTION_SHEETS`, `QUEUED_ACTIONS`, `routePost_`, `handleQueuedAction`. Sebelum itu pastikan frontend tidak lagi memanggilnya.
 
@@ -163,6 +182,7 @@ PDF contoh: 6 halaman. Hal. 1 sampul (judul, Nama, Kelas). Hal. 2 sampai 6 masin
 - Hasil potongan membawa latar pastel Canva.
 - Gambar Drive bergantung pada akses "siapa saja dengan link". Jika kebijakan akun Google sekolah membatasinya, gambar tidak tampil. Uji saat Tahap 1 dideploy.
 - Kasus tepi: jika kiriman antrean offline yang sama diputar ulang SETELAH guru membuka kembali jawaban, kiriman lama bisa menimpa. Sangat jarang, belum ditangani.
+- Penanda kirim lokal siswa dibuang dengan tebakan waktu (10 menit + outbox kosong). Jika outbox sudah kosong tetapi data submisi di cache klien belum disegarkan, siswa bisa sebentar melihat form lagi. Bila ia kirim lagi, server menjawab `duplicate` dan tidak menimpa. Segarkan halaman untuk memperbaiki tampilan.
 - Backend hanya menerima URL gambar berawalan `https://`. Belum dibatasi ke domain tertentu.
 - Parser heuristik: baris berakhiran `:` `?` `!` atau memuat "nomor" dianggap soal, dua+ segmen pendek sejajar dianggap header tabel. Hasil bisa meleset (mis. judul terbaca soal), sebab itu semua blok otomatis bertanda "perlu dicek". Urutan teks PDF acak (seperti hal. 4 contoh) harus dirapikan guru.
 - Editor tidak memakai drag-and-drop; blok digeser dengan tombol naik/turun.
@@ -170,3 +190,12 @@ PDF contoh: 6 halaman. Hal. 1 sampul (judul, Nama, Kelas). Hal. 2 sampai 6 masin
 ## 11. Uji yang belum dijalankan di lingkungan nyata
 
 Seluruh uji Tahap 1 memakai simulasi Apps Script di Node.js (`uji/`). Pengguna harus menjalankan uji manual (`CARA-PASANG.md`) setelah deploy: simpan LKPD, unggah gambar (cek folder "LKPD_Gambar" terbentuk dan URL gambar terbuka di browser tanpa login), kirim dua kali, buka kembali, kirim ulang.
+
+Tambahan uji manual Tahap 3 (setelah deploy, dengan LKPD berisi soal dan tabel):
+1. Login siswa, buka LKPD: identitas tampil, isi dua kolom, muat ulang halaman, draf pulih.
+2. Kirim: konfirmasi menyebut kolom kosong, setelah kirim tampil mode baca. Cek baris di sheet `submissions` (`tipe_sub=lkpd`, `jawaban_json` memuat kunci id soal dan `tabel:baris:kolom`).
+3. Matikan jaringan, kirim, cek lencana "menunggu kirim", nyalakan jaringan, pastikan hanya satu baris tercipta.
+4. Login guru, Koreksi, Detail siswa: label sesuai dokumen, klik Buka Kembali, status berlencana amber.
+5. Login siswa lagi: form terisi jawaban lama + banner kuning, ubah, kirim ulang, baris yang sama tertimpa dan nilai/catatan kosong.
+6. Siswa kelas lain tidak melihat LKPD ini. Mode tamu: form tampil, kirim meminta login.
+

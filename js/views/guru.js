@@ -1,6 +1,7 @@
 import { switchView } from '../components/drawer.js';
 import { closeLoading, setButtonLoading, showConfirm, showLoading, showToast } from '../components/modal.js';
 import { bukaEditorLkpd } from '../components/lkpd-editor.js';
+import { daftarIsian, parseIsiLkpd } from '../components/lkpd-render.js';
 import { collectHotspotItem, renderHotspotConfigForm, renderHotspotItemRow } from '../games/hotspot.js';
 import { apiPost, fetchAllInitialData, refreshSubmissionsData, saveToLocalStorage } from '../services/api.js';
 import { state } from '../state.js';
@@ -393,11 +394,12 @@ function renderKoreksiSiswaModal() {
                   <span class="font-bold text-slate-800">${escapeHtml(labelModul(s))}</span>
                   ${dihitung ? '' : '<span class="px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 text-[10px] font-bold">percobaan lama, tidak dihitung</span>'}
                 </div>
-                <span class="block text-[10px] text-slate-400 mt-0.5">${escapeHtml(waktuStr)} · ${escapeHtml(s.status || '-')}</span>
+                <span class="block text-[10px] text-slate-400 mt-0.5">${escapeHtml(waktuStr)} · ${s.status === 'Dibuka Kembali' ? '<span class="px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 font-bold">Dibuka Kembali</span>' : escapeHtml(s.status || '-')}</span>
               </div>
               <div class="flex items-center gap-2 shrink-0">
                 ${nilaiBadge(nilai)}
                 <button onclick="openKoreksiModal(${jsArg(s.id_sub)})" class="px-3 py-1 bg-brand-blue text-white font-bold rounded-lg">Periksa</button>
+                ${s.tipe_sub === 'lkpd' && s.status !== 'Dibuka Kembali' ? `<button onclick="bukaKembaliSubmisi(${jsArg(s.id_sub)})" class="px-3 py-1 bg-amber-100 text-amber-800 font-bold rounded-lg hover:bg-amber-200 transition">Buka Kembali</button>` : ''}
                 <button onclick="deleteSubmisi(${jsArg(s.id_sub)})" class="px-3 py-1 bg-red-100 text-red-700 font-bold rounded-lg hover:bg-red-200 transition">Hapus</button>
               </div>
             </div>
@@ -468,6 +470,30 @@ export function deleteSubmisi(idSub) {
         Swal.fire({ icon: 'error', title: 'Gagal Menghapus Submisi', text: res.message });
       }
     }
+  );
+}
+
+export function bukaKembaliSubmisi(idSub) {
+  const sub = (state.cachedData.submissions || []).find((s) => String(s.id_sub) === String(idSub));
+  if (!sub) return;
+
+  showConfirm(
+    'Buka Kembali LKPD?',
+    `Jawaban ${sub.nama_siswa || 'siswa'} tidak dihapus. Siswa melihat form dengan jawaban lama, mengedit, lalu mengirim ulang. Nilai dan catatan lama dikosongkan saat siswa mengirim ulang.`,
+    async () => {
+      showLoading('Membuka kembali LKPD...');
+      const res = await apiPost({ action: 'buka_kembali_submisi', id_sub: idSub });
+      closeLoading();
+      if (res.success) {
+        showToast('success', res.message);
+        await fetchAllInitialData(true);
+        switchView('guru-koreksi');
+        if (koreksiDetailKey) renderKoreksiSiswaModal();
+      } else {
+        Swal.fire({ icon: 'error', title: 'Gagal Membuka Kembali', text: res.message });
+      }
+    },
+    'Ya, Buka Kembali'
   );
 }
 
@@ -1594,6 +1620,60 @@ export function deleteEvaluasi(id) {
   );
 }
 
+function htmlJawabanLkpd(sub, jawaban) {
+  const kosong = '<i class="text-slate-400 font-normal">(Tidak diisi)</i>';
+  const kartuPasangan = (label, nilai) => `
+    <div class="p-2.5 bg-white rounded-xl border border-slate-200 text-xs space-y-1">
+      <span class="block font-bold text-slate-600 break-words">${escapeHtml(label)}</span>
+      <span class="block font-medium text-slate-800 whitespace-pre-wrap break-words bg-slate-50 p-2 rounded-lg border border-slate-100">${String(nilai ?? '').trim() ? escapeHtml(String(nilai).trim()) : kosong}</span>
+    </div>`;
+
+  if (Array.isArray(jawaban)) {
+    return jawaban.map((ans, idx) => kartuPasangan(`Pertanyaan #${idx + 1}`, ans)).join('');
+  }
+  if (typeof jawaban !== 'object' || jawaban === null) {
+    return `<p class="p-3 bg-white rounded-xl border text-slate-800 font-medium whitespace-pre-wrap text-xs">${escapeHtml(String(jawaban))}</p>`;
+  }
+
+  const lkpdObj = (state.cachedData.lkpd || []).find((l) => String(l.id_lkpd) === String(sub.id_game));
+  const isi = lkpdObj ? parseIsiLkpd(lkpdObj.isi_json) : null;
+
+  // Jawaban format lama (lkpd_isian) atau LKPD tanpa isi_json: pasangan kunci dan nilai saja.
+  if (!isi) {
+    const kunci = Object.keys(jawaban);
+    if (!kunci.length) return kosong;
+    return kunci.map((k) => kartuPasangan(k, jawaban[k])).join('');
+  }
+
+  const daftar = daftarIsian(isi);
+  const dikenal = new Set(daftar.map((d) => d.kunci));
+  let html = '';
+  let bagianAktif = null;
+
+  daftar.forEach((d) => {
+    if (d.idBagian !== bagianAktif) {
+      bagianAktif = d.idBagian;
+      html += `<div class="pt-1 font-black text-brand-navy border-b">${escapeHtml(d.bagian)}</div>`;
+    }
+    const gambar = d.gambar
+      ? `<img src="${escapeHtml(d.gambar)}" alt="" loading="lazy" onclick="lkpdPerbesar(this.src)" class="max-h-24 rounded-lg border bg-white cursor-zoom-in">`
+      : '';
+    html += `
+      <div class="p-2.5 bg-white rounded-xl border border-slate-200 text-xs space-y-1.5">
+        <span class="block font-bold text-slate-600 break-words">${escapeHtml(d.label)}</span>
+        ${gambar}
+        <span class="block font-medium text-slate-800 whitespace-pre-wrap break-words bg-slate-50 p-2 rounded-lg border border-slate-100">${String(jawaban[d.kunci] ?? '').trim() ? escapeHtml(String(jawaban[d.kunci]).trim()) : kosong}</span>
+      </div>`;
+  });
+
+  const sisa = Object.keys(jawaban).filter((k) => !dikenal.has(k) && String(jawaban[k] ?? '').trim() !== '');
+  if (sisa.length) {
+    html += `<div class="pt-1 font-black text-slate-500 border-b">Jawaban lain</div>`;
+    html += sisa.map((k) => kartuPasangan('(blok dihapus)', jawaban[k])).join('');
+  }
+  return html || kosong;
+}
+
 export function openKoreksiModal(idSub) {
   const sub = (state.cachedData.submissions || []).find((s) => String(s.id_sub) === String(idSub));
   if (!sub) return;
@@ -1620,58 +1700,7 @@ export function openKoreksiModal(idSub) {
   let jawabanHtml = '';
 
   if (sub.tipe_sub === 'lkpd' || sub.tipe_sub === 'lkpd_isian') {
-    if (typeof parsedJawaban === 'object' && parsedJawaban !== null && !Array.isArray(parsedJawaban)) {
-      let fieldLabels = {};
-      const lkpdObj = (state.cachedData.lkpd || []).find((l) => String(l.id_lkpd) === String(sub.id_game));
-      if (lkpdObj && lkpdObj.peta_field_json) {
-        try {
-          const pMap = typeof lkpdObj.peta_field_json === 'string' ? JSON.parse(lkpdObj.peta_field_json) : lkpdObj.peta_field_json;
-          if (pMap && pMap.fields) {
-            Object.values(pMap.fields).forEach((pageFields) => {
-              if (Array.isArray(pageFields)) {
-                pageFields.forEach((f) => {
-                  if (f.id) fieldLabels[f.id] = f.label || f.id;
-                });
-              }
-            });
-          }
-        } catch (e) { }
-      }
-
-      const entries = Object.keys(parsedJawaban).map((key) => {
-        const numMatch = String(key).match(/(\d+)/);
-        return { key, num: numMatch ? parseInt(numMatch[1], 10) : 0, value: parsedJawaban[key] };
-      });
-      entries.sort((a, b) => a.num - b.num);
-
-      jawabanHtml = entries
-        .map(
-          (entry, idx) => `
-            <div class="p-2.5 bg-white rounded-xl border border-slate-200 text-xs flex justify-between items-center gap-3">
-              <span class="font-bold text-slate-600 shrink-0">${escapeHtml(fieldLabels[entry.key] || entry.key || `Isian #${idx + 1}`)}:</span>
-              <span class="font-bold text-brand-blue bg-blue-50 px-2 py-0.5 rounded border border-blue-200 text-right break-words">${entry.value ? escapeHtml(entry.value) : '<i class="text-slate-400 font-normal">(Tidak diisi)</i>'
-            }</span>
-            </div>
-          `
-        )
-        .join('');
-    } else if (Array.isArray(parsedJawaban)) {
-      jawabanHtml = parsedJawaban
-        .map(
-          (ans, idx) => `
-                <div class="p-3 bg-white rounded-xl border border-slate-200 space-y-1">
-                    <span class="font-bold text-slate-700 text-[11px]">Pertanyaan #${idx + 1}</span>
-                    <p class="text-slate-800 font-medium whitespace-pre-wrap bg-slate-50 p-2.5 rounded-lg border border-slate-100 text-xs">${ans ? escapeHtml(String(ans).trim()) : '<i class="text-slate-400">(Tidak diisi)</i>'
-            }</p>
-                </div>
-            `
-        )
-        .join('');
-    } else {
-      jawabanHtml = `<p class="p-3 bg-white rounded-xl border text-slate-800 font-medium whitespace-pre-wrap text-xs">${escapeHtml(String(
-        parsedJawaban
-      ))}</p>`;
-    }
+    jawabanHtml = htmlJawabanLkpd(sub, parsedJawaban);
   } else if (sub.tipe_sub === 'evaluasi') {
     if (typeof parsedJawaban === 'object' && parsedJawaban !== null) {
       const soalList = state.cachedData.soal_evaluasi || [];
@@ -1740,7 +1769,7 @@ export function openKoreksiModal(idSub) {
   body.innerHTML = `
     <div class="p-3 bg-slate-50 border rounded-2xl space-y-2">
       <span class="font-black text-brand-navy block">📌 Isi Lembar Jawaban Siswa</span>
-      <div class="space-y-2 max-h-60 overflow-y-auto pr-1">
+      <div class="space-y-2 max-h-[55vh] overflow-y-auto pr-1">
         ${jawabanHtml}
       </div>
     </div>
@@ -1825,6 +1854,7 @@ window.setKoreksiFilter = setKoreksiFilter;
 window.openKoreksiSiswaModal = openKoreksiSiswaModal;
 window.closeKoreksiSiswaModal = closeKoreksiSiswaModal;
 window.deleteSubmisi = deleteSubmisi;
+window.bukaKembaliSubmisi = bukaKembaliSubmisi;
 window.openEvaluasiModal = openEvaluasiModal;
 window.deleteEvaluasi = deleteEvaluasi;
 window.closeEvaluasiModal = closeEvaluasiModal;

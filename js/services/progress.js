@@ -1,4 +1,5 @@
 import { state } from '../state.js';
+import { CACHE_KEY } from '../config.js';
 import { isPublish, kelasCocok, sama } from './match.js';
 
 const norm = (v) => String(v === null || v === undefined ? '' : v).trim().toLowerCase();
@@ -55,6 +56,73 @@ function hasSubmission(user, tipeList, idGame) {
   );
 }
 
+/* ---------- Status LKPD terstruktur milik siswa ----------
+   Kirim LKPD selalu lewat antrean offline, jadi data server bisa terlambat tiba.
+   Penanda lokal menyimpan jawaban yang sudah dikirim supaya form tidak bisa dikirim dua kali.
+   Bentuk penanda: { jawaban, waktu, dasarTs }
+   dasarTs hanya terisi saat kirim ulang setelah Buka Kembali: berisi timestamp submisi di server
+   pada saat siswa mengirim ulang. Selama server masih menampilkan timestamp itu, kirim ulang
+   dianggap belum diproses. */
+
+const kunciKirimLkpd = (idLkpd) => `${CACHE_KEY}_LKPD_KIRIM_${idLkpd}_${state.currentUser ? state.currentUser.username : 'guest'}`;
+
+export function bacaKirimLkpd(idLkpd) {
+  try {
+    const d = JSON.parse(localStorage.getItem(kunciKirimLkpd(idLkpd)) || 'null');
+    return d && typeof d === 'object' && d.jawaban && typeof d.jawaban === 'object' ? d : null;
+  } catch (err) {
+    return null;
+  }
+}
+
+export function simpanKirimLkpd(idLkpd, data) {
+  try {
+    localStorage.setItem(kunciKirimLkpd(idLkpd), JSON.stringify(data));
+  } catch (err) {
+    console.warn('Gagal menyimpan penanda kirim LKPD:', err);
+  }
+}
+
+export function hapusKirimLkpd(idLkpd) {
+  try {
+    localStorage.removeItem(kunciKirimLkpd(idLkpd));
+  } catch (err) {}
+}
+
+// Submisi LKPD milik siswa yang sedang login (terbaru). Backend sudah memfilter per siswa.
+export function submisiLkpdSaya(idLkpd) {
+  const user = username();
+  if (!user) return null;
+  const daftar = (state.cachedData.submissions || [])
+    .filter(
+      (s) =>
+        norm(s.username_siswa) === user &&
+        ['lkpd', 'lkpd_isian'].includes(norm(s.tipe_sub)) &&
+        String(s.id_game || '').trim() === String(idLkpd).trim()
+    )
+    .sort((a, b) => (Date.parse(b.timestamp) || 0) - (Date.parse(a.timestamp) || 0));
+  return daftar[0] || null;
+}
+
+// keadaan: 'kosong' (belum kirim), 'dibuka' (guru membuka kembali), 'terkirim'.
+export function keadaanLkpd(idLkpd) {
+  const kosong = { keadaan: 'kosong', sub: null, marker: null };
+  if (!username()) return kosong;
+
+  const sub = submisiLkpdSaya(idLkpd);
+  const marker = bacaKirimLkpd(idLkpd);
+
+  if (sub) {
+    if (norm(sub.status) === 'dibuka kembali') {
+      const kirimUlang = Boolean(marker && marker.dasarTs && String(marker.dasarTs) === String(sub.timestamp));
+      return { keadaan: kirimUlang ? 'terkirim' : 'dibuka', sub, marker: kirimUlang ? marker : null };
+    }
+    return { keadaan: 'terkirim', sub, marker: null };
+  }
+  if (marker) return { keadaan: 'terkirim', sub: null, marker };
+  return kosong;
+}
+
 function evalLocalDone(idEvaluasi) {
   try {
     return Boolean(JSON.parse(localStorage.getItem(`EVAL_DONE_${idEvaluasi}_${state.currentUser.username}`) || 'null'));
@@ -91,9 +159,7 @@ export function getProgresPertemuan(ptmId) {
 
   if (lkpd.length) {
     const lk = lkpd[0];
-    const done =
-      Boolean(user) &&
-      (hasSubmission(user, ['lkpd', 'lkpd_isian'], lk.id_lkpd) || local.has(`lkpd:${lk.id_lkpd}`));
+    const done = Boolean(user) && keadaanLkpd(lk.id_lkpd).keadaan === 'terkirim';
     result.lkpd = { total: 1, selesai: done ? 1 : 0, done };
   }
 

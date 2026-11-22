@@ -33,7 +33,8 @@ export function getNilaiSubmisi(s) {
     const n = Number(s.nilai_esai);
     return isNaN(n) ? null : n;
   }
-  if (String(s.status || '').trim() === 'Belum Dinilai') return null;
+  const status = String(s.status || '').trim();
+  if (status === 'Belum Dinilai' || status === 'Dibuka Kembali') return null;
   if (terisi(s.skor_otomatis)) {
     const n = Number(s.skor_otomatis);
     return isNaN(n) ? null : n;

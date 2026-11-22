@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'v23';
+const CACHE_VERSION = 'v24';
 const SHELL_CACHE = `elkpd-steam-shell-${CACHE_VERSION}`;
 const RUNTIME_CACHE = `elkpd-steam-runtime-${CACHE_VERSION}`;
 const GAS_API_URL = 'https://script.google.com/macros/s/AKfycbyH-b382jjcxDA6OGWfmW-AeBcQs-6I-LO3H5vBOWN1FDb1NmmpJFi561mbm26H3obF5w/exec';
@@ -19,6 +19,7 @@ const SHELL_ASSETS = [
     './js/components/drawer.js',
     './js/components/field-map-editor.js',
     './js/components/lkpd-editor.js',
+    './js/components/lkpd-render.js',
     './js/components/modal.js',
     './js/components/pdf-overlay.js',
     './js/components/ptm-tabs.js',
