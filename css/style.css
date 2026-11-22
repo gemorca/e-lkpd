@@ -183,3 +183,90 @@ body {
         scroll-behavior: auto !important;
     }
 }
+
+/* Tahap 6: form LKPD di HP */
+.lkpd-progres-sticky {
+    position: sticky;
+    top: var(--lkpd-top, 4rem);
+    z-index: 15;
+}
+
+.lkpd-kirim-wrap {
+    position: sticky;
+    bottom: 0.75rem;
+    z-index: 15;
+    padding-top: 0.5rem;
+}
+
+.lkpd-ed-head {
+    position: sticky;
+    top: 0;
+    z-index: 5;
+}
+
+/* tabel menjadi kartu di layar kecil: gambar di atas, isian di bawah */
+@media (max-width: 639px) {
+    .lkpd-tabel-wrap {
+        border: 0;
+        overflow: visible;
+    }
+
+    .lkpd-tabel,
+    .lkpd-tabel tbody,
+    .lkpd-tabel tr,
+    .lkpd-tabel td {
+        display: block;
+        width: 100%;
+    }
+
+    .lkpd-tabel thead {
+        display: none;
+    }
+
+    .lkpd-tabel tr {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+        margin-bottom: 0.75rem;
+        padding: 0.75rem;
+        border: 1px solid #e2e8f0;
+        border-radius: 1rem;
+        background: #f8fafc;
+    }
+
+    .lkpd-tabel td {
+        border: 0;
+        padding: 0;
+        min-width: 0;
+    }
+
+    .lkpd-tabel td[data-jenis="gambar"] {
+        order: -1;
+    }
+
+    .lkpd-tabel td:empty {
+        display: none;
+    }
+
+    .lkpd-tabel td[data-jenis="gambar"] img {
+        width: 100%;
+        height: auto;
+        max-height: 14rem;
+        object-fit: contain;
+    }
+
+    .lkpd-tabel td[data-label]:not([data-label=""])::before {
+        content: attr(data-label);
+        display: block;
+        margin-bottom: 0.25rem;
+        font-size: 0.7rem;
+        font-weight: 800;
+        color: #64748b;
+        text-transform: uppercase;
+        letter-spacing: 0.02em;
+    }
+
+    .lkpd-tabel td[data-jenis="gambar"]::before {
+        display: none !important;
+    }
+}

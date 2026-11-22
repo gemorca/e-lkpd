@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'v26';
+const CACHE_VERSION = 'v27';
 const SHELL_CACHE = `elkpd-steam-shell-${CACHE_VERSION}`;
 const RUNTIME_CACHE = `elkpd-steam-runtime-${CACHE_VERSION}`;
 const GAS_API_URL = 'https://script.google.com/macros/s/AKfycbww0nA5xLOX5_xqLFGZIVwescJJ4--CQXVeoU_uV9vjOu1JMECYlk807QjidCwFkvLc_Q/exec';

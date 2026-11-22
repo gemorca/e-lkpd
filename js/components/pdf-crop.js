@@ -65,8 +65,8 @@ function bangunModal() {
   }
   modal.innerHTML = `
     <div class="bg-slate-100 w-full h-full flex flex-col text-xs">
-      <div class="flex items-center gap-2 px-3 py-2.5 bg-white border-b flex-wrap">
-        <h2 class="font-black text-brand-navy text-sm flex-1 min-w-[140px]">✂ Potong Gambar dari PDF</h2>
+      <div class="flex items-center gap-2 px-3 py-2 bg-white border-b flex-wrap">
+        <h2 class="font-black text-brand-navy text-sm flex-1 min-w-[140px] truncate">✂ Potong Gambar dari PDF</h2>
         <span id="pc-nama" class="text-slate-500 truncate max-w-[40%]"></span>
         <button type="button" id="pc-ganti" class="${btn}">Pilih PDF</button>
         <button type="button" id="pc-tutup" class="${btn}">Tutup</button>

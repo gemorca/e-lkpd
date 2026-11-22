@@ -173,7 +173,7 @@ function bannerStatus(ctx) {
   }
   if (ctx.dibuka) {
     return `
-    <div class="bg-amber-50 border border-amber-300 p-4 rounded-3xl space-y-1">
+    <div role="status" class="bg-amber-50 border border-amber-300 border-l-8 border-l-amber-500 p-4 rounded-3xl space-y-1">
       <div class="font-black text-amber-800">🔓 Guru membuka kembali LKPD ini</div>
       <p class="text-amber-700 font-medium">Jawaban lamamu sudah terisi. Perbaiki seperlunya, lalu kirim ulang. Nilai dan catatan lama dikosongkan saat kamu mengirim ulang.</p>
     </div>`;
@@ -183,7 +183,7 @@ function bannerStatus(ctx) {
 
 function kartuProgres(total) {
   return `
-    <div class="bg-white p-4 rounded-3xl border shadow-sm space-y-2">
+    <div class="lkpd-progres-sticky bg-white p-3 sm:p-4 rounded-3xl border shadow-sm space-y-2">
       <div class="flex items-center justify-between font-bold text-slate-700">
         <span>Kolom terisi</span>
         <span id="lkpd-progres-teks">0 dari ${total}</span>
@@ -240,7 +240,7 @@ function bangunIsi(lkpdObj, ptmId) {
       ${mode === 'baca' ? jawabanLain(isi, jawaban) : ''}
     </div>
     ${mode === 'isi'
-      ? `<button id="btn-kirim-lkpd" onclick="requireStudentAuth(() => kirimLkpdSiswa(${jsArg(idLkpd)}))" class="w-full py-3.5 bg-brand-emerald text-white font-black rounded-2xl shadow hover:bg-emerald-600 transition">${labelKirim}</button>`
+      ? `<div class="lkpd-kirim-wrap"><button id="btn-kirim-lkpd" onclick="requireStudentAuth(() => kirimLkpdSiswa(${jsArg(idLkpd)}))" class="w-full py-3.5 bg-brand-emerald text-white font-black rounded-2xl shadow-xl hover:bg-emerald-600 transition">${labelKirim}</button></div>`
       : ''}`;
 }
 
@@ -292,6 +292,8 @@ export function inisiasiLkpd(ptmId) {
     });
   }
 
+  const header = document.querySelector('header');
+  if (header) root.style.setProperty('--lkpd-top', `${header.offsetHeight + 4}px`);
   perbaruiProgres(root);
   const isiElem = root.querySelector('#lkpd-isi');
   if (isiElem && isiElem.dataset.draft === '1') showToast('info', 'Draf pengerjaan dipulihkan!');

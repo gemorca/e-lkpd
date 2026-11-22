@@ -89,7 +89,7 @@ Catatan implementasi:
 | 3 | Sisi siswa, koreksi guru, Buka Kembali | SELESAI (zip `tahap-3-sisi-siswa`). Lulus uji di Chromium (data tiruan): form siswa, draf, kirim, mode baca, Buka Kembali, kirim ulang, koreksi guru, mode guru dan tamu. BELUM diuji dengan Apps Script sungguhan dan HP asli. `Kode.gs` TIDAK berubah. |
 | 4 | Alat Potong dari PDF | SELESAI (zip `tahap-4-potong-pdf`). Lulus uji di Chromium (pdf.js 6.2 lokal, PDF tiruan 2 halaman, mouse): potong, unggah, pasang ke soal/item/sel tabel, pindah halaman, zoom. BELUM diuji dengan PDF Canva asli, sentuhan di HP asli, dan Apps Script sungguhan. `Kode.gs` TIDAK berubah. |
 | 5 | Pembersihan kode lama | SELESAI (zip `tahap-5-pembersihan`). Lihat "Hasil Tahap 5". Menunggu konfirmasi pengguna sebelum Tahap 6. |
-| 6 | Tampilan (CSS, HP) | BELUM |
+| 6 | Tampilan (CSS, HP) | SELESAI (zip `tahap-6-tampilan`). Lihat "Hasil Tahap 6". Semua tahap rencana selesai. |
 
 Penyimpangan dari rencana awal (disengaja): aksi lama `save_field_map_lkpd`, `submit_lkpd_isian`, `get_jawaban_lkpd_isian`, serta `QUEUED_ACTIONS.submit_lkpd_isian` tidak dihapus di Tahap 1 supaya aplikasi lama tetap jalan. Sudah dihapus di Tahap 5 (kecuali stub `submit_lkpd_isian`, lihat Hasil Tahap 5).
 
@@ -180,6 +180,15 @@ Frontend dihapus: `js/components/pdf-overlay.js`, `js/components/field-map-edito
 
 ### Tahap 6. Tampilan
 Form LKPD nyaman di HP (tabel menjadi kartu di layar kecil: gambar di atas, isian di bawah), progress bar, tombol kirim melayang, banner Buka Kembali, polesan editor guru dan alat potong. Uji dari 360 px sampai desktop.
+
+### Hasil Tahap 6 (SELESAI)
+Berkas diubah: `css/style.css`, `js/components/lkpd-render.js`, `js/views/lkpd.js`, `js/components/lkpd-editor.js`, `js/components/pdf-crop.js`, `sw.js` (`CACHE_VERSION` = `v27`), `Point.md`. Tidak ada perubahan backend.
+- Tabel jadi kartu di layar < 640 px: sel diberi `data-jenis` dan `data-label` (judul kolom). Di HP kepala tabel disembunyikan, tiap baris menjadi kartu, sel gambar tampil paling atas (`order:-1`), isian di bawah dengan label kolom di atas kotaknya, sel kosong disembunyikan. Di >= 640 px tabel tetap seperti semula.
+- Progress bar `.lkpd-progres-sticky` menempel di bawah header (`--lkpd-top` diukur dari tinggi `<header>` di `inisiasiLkpd`). Tombol kirim dibungkus `.lkpd-kirim-wrap` (sticky bawah, jarak 0,75 rem) sehingga selalu terlihat.
+- Banner Buka Kembali: garis kiri tebal amber dan `role="status"`.
+- Editor guru: header menempel di atas, judul dipotong (`truncate`), padding lebih kecil di HP, ruang bawah 5 rem. Alat Potong: judul dipotong, header lebih ringkas (susunan lain sudah responsif dari Tahap 4).
+- Uji Chromium (halaman tiruan, CSS aplikasi dipakai, Tailwind CDN TIDAK ada): pada 360, 768, 1280 px tidak ada geser horizontal. Pada 360 px baris tabel menjadi kolom tunggal (gambar atas, isian bawah, label kolom tampil, baris teks tetap terbaca); pada 768 dan 1280 px tetap tabel. Progress dan tombol kirim menempel saat digulir.
+- BELUM diuji: tampilan dengan Tailwind sungguhan di HP asli, kotak isian dengan keyboard layar terbuka (tombol kirim melayang bisa menutupi kolom terbawah saat keyboard muncul), editor dan alat Potong di HP asli. Uji manual di HP 360 px: isi form, gulir, kirim.
 
 ## 8. Temuan tentang kode yang ada
 

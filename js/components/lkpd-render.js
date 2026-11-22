@@ -122,21 +122,21 @@ function blokGambar(k) {
 function selTabel(k, r, c, ri, mode, jawaban) {
   const s = (r.sel || {})[c.id] || {};
   if (s.jenis === 'gambar') {
-    return `<td class="border p-1.5 align-top">${safeUrl(s.nilai) ? gambarHtml(s.nilai, 'w-20 h-20 object-cover rounded-lg border') : ''}</td>`;
+    return `<td data-jenis="gambar" data-label="${e(c.judul || '')}" class="border p-1.5 align-top">${safeUrl(s.nilai) ? gambarHtml(s.nilai, 'w-20 h-20 sm:w-20 sm:h-20 object-cover rounded-lg border') : ''}</td>`;
   }
   if (s.jenis === 'isian') {
     const label = `Baris ${ri + 1}, kolom ${c.judul || '?'}`;
-    return `<td class="border p-1.5 align-top min-w-[9rem]">${kotakIsian(mode, kunciSel(k.id, r.id, c.id), label, jawaban, 2)}</td>`;
+    return `<td data-jenis="isian" data-label="${e(c.judul || '')}" class="border p-1.5 align-top min-w-[9rem]">${kotakIsian(mode, kunciSel(k.id, r.id, c.id), label, jawaban, 2)}</td>`;
   }
-  return `<td class="border p-1.5 align-top whitespace-pre-line">${e(s.nilai || '')}</td>`;
+  return `<td data-jenis="teks" data-label="${e(c.judul || '')}" class="border p-1.5 align-top whitespace-pre-line">${e(s.nilai || '')}</td>`;
 }
 
 function blokTabel(k, mode, jawaban) {
   const kolom = Array.isArray(k.kolom) ? k.kolom : [];
   const baris = Array.isArray(k.baris) ? k.baris : [];
   return `
-    <div class="overflow-x-auto rounded-xl border">
-      <table class="w-full border-collapse text-[11px]">
+    <div class="lkpd-tabel-wrap overflow-x-auto rounded-xl border">
+      <table class="lkpd-tabel w-full border-collapse text-[11px]">
         <thead><tr>${kolom.map((c) => `<th class="border p-1.5 bg-slate-100 text-left">${e(c.judul)}</th>`).join('')}</tr></thead>
         <tbody>${baris.map((r, ri) => `<tr>${kolom.map((c) => selTabel(k, r, c, ri, mode, jawaban)).join('')}</tr>`).join('')}</tbody>
       </table>
