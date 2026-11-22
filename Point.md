@@ -87,7 +87,7 @@ Catatan implementasi:
 | 1 | Backend `Kode.gs` | SELESAI (zip `tahap-1-backend`). Lulus 32 + 10 uji logika. BELUM diuji di Apps Script sungguhan: pengguna perlu deploy dan menjalankan uji manual di `CARA-PASANG.md`. |
 | 2 | Parser PDF dan editor guru | SELESAI (zip `tahap-2-parser-editor`). Lulus uji logika parser (data tiruan) dan uji editor di Chromium (tambah/ubah/hapus blok, tabel, validasi, simpan, draf). BELUM diuji dengan PDF contoh Canva asli dan Apps Script sungguhan. |
 | 3 | Sisi siswa, koreksi guru, Buka Kembali | SELESAI (zip `tahap-3-sisi-siswa`). Lulus uji di Chromium (data tiruan): form siswa, draf, kirim, mode baca, Buka Kembali, kirim ulang, koreksi guru, mode guru dan tamu. BELUM diuji dengan Apps Script sungguhan dan HP asli. `Kode.gs` TIDAK berubah. |
-| 4 | Alat Potong dari PDF | BELUM |
+| 4 | Alat Potong dari PDF | SELESAI (zip `tahap-4-potong-pdf`). Lulus uji di Chromium (pdf.js 6.2 lokal, PDF tiruan 2 halaman, mouse): potong, unggah, pasang ke soal/item/sel tabel, pindah halaman, zoom. BELUM diuji dengan PDF Canva asli, sentuhan di HP asli, dan Apps Script sungguhan. `Kode.gs` TIDAK berubah. |
 | 5 | Pembersihan kode lama | BELUM |
 | 6 | Tampilan (CSS, HP) | BELUM |
 
@@ -146,6 +146,19 @@ Berkas: `js/components/pdf-crop.js` (baru), disambungkan ke editor.
 - Render halaman PDF di canvas (navigasi, zoom), kotak seleksi dengan pointer events (mouse dan sentuh), pratinjau, konfirmasi. Hasil JPEG kualitas 0,85, latar putih, lebar maks 1.000 px, kirim lewat `upload_image`, URL masuk ke blok atau item gambar aktif. Alat tetap terbuka untuk potongan berikutnya.
 - PDF tidak disimpan di Drive, jadi saat editor dibuka lagi guru memilih ulang file PDF untuk memotong.
 
+### Hasil Tahap 4 (SELESAI)
+Berkas baru: `js/components/pdf-crop.js`. Berkas diubah: `js/components/lkpd-editor.js`, `js/views/guru.js`, `sw.js` (`CACHE_VERSION` v25, `pdf-crop.js` masuk `SHELL_ASSETS`). `Kode.gs`, `api.js`, `index.html` TIDAK berubah (pdf.js 3.11.174 sudah dimuat dari CDN di `index.html`).
+
+- `pdf-crop.js` ekspor: `bukaPotongPdf({ambilTujuan, terapkan, tujuanAwal})`, `tutupPotongPdf(force)`, `setSumberPdf(fileOrBuffer)`. Modal layar penuh dinamis `#pdf-crop-modal` (z-65, di atas editor z-60), semua handler lewat `addEventListener` (tanpa binding `window`).
+- PDF hanya di memori halaman (`sumber`), tidak dikirim ke server. `guru.js` memanggil `setSumberPdf(file)` setelah impor PDF berhasil, jadi alat langsung terbuka dengan PDF yang sama. Dari "Edit Isi" biasa guru memilih file PDF sekali; setelah itu PDF dipakai ulang sampai halaman dimuat ulang. Tombol "Ganti PDF" tersedia.
+- Tampilan: navigasi halaman, zoom 100/150/200/300/400 persen (100 persen = pas lebar), kanvas dirender dengan dpr maks 2. Tombol mode "Pilih area" / "Geser halaman": di mode pilih, overlay memakai `touch-action:none` supaya jari menggambar kotak; di mode geser overlay `pointer-events:none` supaya area bisa di-scroll. Seleksi memakai pointer events (mouse dan sentuh), disimpan dalam satuan PDF sehingga tetap benar saat zoom. Seleksi di bawah 20 px diabaikan. Ganti halaman menghapus seleksi.
+- Potongan: area terpilih dirender ulang langsung ke kanvas kecil (opsi `transform` pdf.js) dengan skala `min(4, 1000/lebarPDF)`, jadi lebar hasil maksimal 1.000 px dan tajam. Latar putih, JPEG kualitas 0,85. Pratinjau = berkas yang akan diunggah. Batas 3 MB dicek di klien. Unggah lewat `upload_image` (`fileName: potongan.jpg`).
+- Tujuan: dropdown "Pasang ke gambar" berisi semua tempat gambar di editor (`daftarSlotGambar` di `lkpd-editor.js`): gambar soal (soal tanpa gambar ikut terdaftar dan objek gambarnya dibuat saat dipakai), tiap item blok gambar, tiap sel tabel berjenis gambar. Penanda ✓ terisi, ○ kosong. Kunci tujuan: `soal|idBlok`, `item|idBlok|n`, `sel|idBlok|idBaris|idKolom`. Setelah satu potongan dipakai, alat TETAP terbuka dan tujuan pindah ke tempat kosong berikutnya.
+- Editor: tombol "✂ Potong dari PDF" di bilah atas (tujuan otomatis tempat kosong pertama), serta tombol per tempat gambar (gambar soal, item gambar, sel tabel "✂ Potong"). `isiSlotGambar` memakai `ubah()` sehingga draf localStorage ikut tersimpan. `tutup()` editor ikut menutup alat.
+- Uji Chromium: potong kotak merah halaman 1 (800x400 px, piksel tengah merah) ke item gambar 2, tujuan pindah otomatis, halaman 2 + zoom 150 persen, potong kotak hijau ke soal, klik seleksi kecil diabaikan, mode geser, tutup alat (editor tetap terbuka dan terkunci scroll), URL tampil di input dan pratinjau editor, PDF dipakai ulang saat dibuka lagi.
+- Belum diuji: PDF Canva asli (vektor besar), seret dengan jari di HP, PDF sangat besar (memori HP), unggah sungguhan ke Drive.
+- Catatan: pada uji, Tailwind CDN tidak ada (jaringan diblokir), jadi tata letak diuji dengan CSS minimal. Cek tampilan sungguhan di Tahap 6.
+
 ### Tahap 5. Pembersihan
 - Cek impor (grep) sebelum menghapus: `js/components/pdf-overlay.js`, `js/components/field-map-editor.js`, `js/services/auto-detect.js`, `js/services/detectors/*`, `js/services/ocr-labels.js`. Pastikan materi dan game (misalnya hotspot) tidak memakainya.
 - Bersihkan modal fullscreen LKPD dan peta isian di `index.html`, binding `window.*` di `main.js` dan `drawer.js`, aturan CSS overlay, `parseQuestionsFromText` dan cabang `isLkpd` di `ocr.js`.
@@ -198,4 +211,12 @@ Tambahan uji manual Tahap 3 (setelah deploy, dengan LKPD berisi soal dan tabel):
 4. Login guru, Koreksi, Detail siswa: label sesuai dokumen, klik Buka Kembali, status berlencana amber.
 5. Login siswa lagi: form terisi jawaban lama + banner kuning, ubah, kirim ulang, baris yang sama tertimpa dan nilai/catatan kosong.
 6. Siswa kelas lain tidak melihat LKPD ini. Mode tamu: form tampil, kirim meminta login.
+
+Tambahan uji manual Tahap 4:
+1. Guru, Edit Isi, klik "✂ Potong dari PDF", pilih PDF contoh Canva. Halaman tampil pas lebar.
+2. Seret kotak di sekitar satu gambar. Pratinjau muncul (lebar maks 1.000 px). Pilih tujuan, klik "Pakai potongan". Cek gambar masuk ke blok dan URL `https://lh3.googleusercontent.com/d/...` terisi.
+3. Potong gambar kedua: tujuan pindah ke tempat kosong berikutnya. Alat tidak menutup sendiri.
+4. Di HP: pakai mode "Geser halaman" untuk menggulir saat zoom, kembali ke "Pilih area" untuk menyeret kotak dengan jari.
+5. Simpan LKPD, buka sebagai siswa, gambar tampil dan bisa diperbesar.
+6. Muat ulang halaman, buka editor lagi: alat meminta memilih PDF lagi (PDF tidak disimpan).
 

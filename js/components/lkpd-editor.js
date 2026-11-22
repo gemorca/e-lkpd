@@ -7,6 +7,7 @@ import { escapeHtml, jsArg, safeUrl } from '../services/html.js';
 import { showToast, showConfirm } from './modal.js';
 import { buatIdAcak } from '../services/lkpd-parser.js';
 import { renderIsiLkpd } from './lkpd-render.js';
+import { bukaPotongPdf, tutupPotongPdf } from './pdf-crop.js';
 
 const MAKS_JSON = 45000;
 const MAKS = { bagian: 50, blok: 100, kolom: 10, baris: 50, isian: 500, gambar: 20 };
@@ -246,7 +247,7 @@ function renderGambarField(label, g, aksiPrefix, boleh = true) {
       <div class="flex-1 space-y-1">
         <div class="flex gap-1">
           <button type="button" class="${cls.btn}" onclick="lkpdEd.${aksiPrefix.up}">⬆ Unggah</button>
-          ${boleh ? '' : ''}
+          ${aksiPrefix.pot ? `<button type="button" class="${cls.btn}" onclick="lkpdEd.${aksiPrefix.pot}">✂ Potong dari PDF</button>` : ''}
         </div>
         <input class="${cls.inp}" placeholder="URL https (otomatis terisi setelah unggah)" value="${escapeHtml(g.url || '')}" oninput="lkpdEd.${aksiPrefix.url}">
         <input class="${cls.inp}" placeholder="${escapeHtml(label)}" value="${escapeHtml(g.caption || '')}" oninput="lkpdEd.${aksiPrefix.cap}">
@@ -270,7 +271,7 @@ function renderBlok(b, k, i, n) {
       ${k.gambar
         ? `<div class="p-2 bg-slate-50 rounded-xl border space-y-1">
             ${renderGambarField('Keterangan gambar soal', k.gambar, {
-              up: `soalGambarUp(${idA})`, url: `soalGambar(${idA},'url',this.value)`, cap: `soalGambar(${idA},'caption',this.value)`
+              up: `soalGambarUp(${idA})`, pot: `potong(${jsArg('soal|' + k.id)})`, url: `soalGambar(${idA},'url',this.value)`, cap: `soalGambar(${idA},'caption',this.value)`
             })}
             <button type="button" class="${cls.btnDanger}" onclick="lkpdEd.soalGambarHapus(${idA})">Hapus gambar soal</button>
           </div>`
@@ -279,7 +280,7 @@ function renderBlok(b, k, i, n) {
     isi = k.item.map((g, n2) => `
       <div class="p-2 bg-slate-50 rounded-xl border space-y-1">
         ${renderGambarField('Caption (opsional)', g, {
-          up: `itemUp(${idA},${n2})`, url: `itemSet(${idA},${n2},'url',this.value)`, cap: `itemSet(${idA},${n2},'caption',this.value)`
+          up: `itemUp(${idA},${n2})`, pot: `potong(${jsArg('item|' + k.id + '|' + n2)})`, url: `itemSet(${idA},${n2},'url',this.value)`, cap: `itemSet(${idA},${n2},'caption',this.value)`
         })}
         <div class="flex gap-1">
           <button type="button" class="${cls.btn}" onclick="lkpdEd.itemGeser(${idA},${n2},-1)">↑</button>
@@ -316,6 +317,7 @@ function renderSelInput(k, r, c) {
     const u = safeUrl(s.nilai);
     nilai = `${u ? `<img src="${escapeHtml(u)}" alt="" class="w-16 h-16 object-cover rounded border">` : ''}
       <button type="button" class="${cls.btn}" onclick="lkpdEd.selUp(${a})">⬆ Unggah</button>
+      <button type="button" class="${cls.btn}" onclick="lkpdEd.potong(${jsArg('sel|' + k.id + '|' + r.id + '|' + c.id)})">✂ Potong</button>
       <input class="${cls.inp}" placeholder="URL https" value="${escapeHtml(s.nilai || '')}" oninput="lkpdEd.selSet(${a},this.value)">`;
   } else nilai = `<div class="text-[10px] text-slate-500 italic">siswa mengisi di sini</div>`;
   return `
@@ -414,6 +416,7 @@ function render() {
         <h2 class="font-black text-brand-navy text-sm flex-1 min-w-[140px]">Editor Isi LKPD — ${escapeHtml(ed.judul || 'Tanpa judul')}</h2>
         ${jumlahCek ? `<span class="px-2 py-1 rounded-full bg-amber-100 text-amber-800 font-bold">${jumlahCek} blok perlu dicek</span>` : ''}
         <span class="text-slate-500">${hitungIsian(ed.isi)} isian · ${JSON.stringify(bersihkan(ed.isi)).length}/${MAKS_JSON} karakter</span>
+        <button type="button" class="${cls.btn}" onclick="lkpdEd.potong('')">✂ Potong dari PDF</button>
         <button type="button" class="${cls.btn}" onclick="lkpdEd.togglePratinjau()">${ed.pratinjau ? '✏️ Kembali edit' : '👁️ Pratinjau'}</button>
         <button type="button" class="${cls.btn}" onclick="lkpdEd.tutup()">Tutup</button>
         <button type="button" id="lkpd-ed-simpan" class="px-4 py-1.5 rounded-lg bg-brand-blue text-white font-black" onclick="lkpdEd.simpan()">💾 Simpan</button>
@@ -430,6 +433,56 @@ function ubah(fn, { render: r = true } = {}) {
   fn();
   simpanDraf();
   if (r) render();
+}
+
+/* ---------- tempat gambar untuk alat Potong dari PDF ---------- */
+// Kunci tujuan: soal|idBlok, item|idBlok|n, sel|idBlok|idBaris|idKolom (ID tanpa karakter "|").
+
+function daftarSlotGambar() {
+  const hasil = [];
+  ed.isi.bagian.forEach((b, bi) => {
+    const nb = b.judul || 'Bagian ' + (bi + 1);
+    b.blok.forEach((k, ki) => {
+      if (k.tipe === 'soal') {
+        hasil.push({ kunci: 'soal|' + k.id, label: nb + ' › Soal: ' + (k.label || '(tanpa label)').slice(0, 50), terisi: Boolean(k.gambar && k.gambar.url) });
+      } else if (k.tipe === 'gambar') {
+        k.item.forEach((g, n) => {
+          hasil.push({ kunci: 'item|' + k.id + '|' + n, label: nb + ' › Blok ' + (ki + 1) + ', gambar ' + (n + 1), terisi: Boolean(g.url) });
+        });
+      } else if (k.tipe === 'tabel') {
+        k.baris.forEach((r, ri) => k.kolom.forEach((c) => {
+          const s = r.sel[c.id];
+          if (s && s.jenis === 'gambar') {
+            hasil.push({ kunci: 'sel|' + k.id + '|' + r.id + '|' + c.id, label: nb + ' › Tabel baris ' + (ri + 1) + ', kolom ' + (c.judul || '?'), terisi: Boolean(s.nilai) });
+          }
+        }));
+      }
+    });
+  });
+  return hasil;
+}
+
+function isiSlotGambar(kunci, url) {
+  if (!ed) return false;
+  const [tipe, idBlok, a, b] = String(kunci).split('|');
+  const x = cariBlok(idBlok);
+  if (!x) return false;
+  if (tipe === 'soal' && x.blok.tipe === 'soal') {
+    ubah(() => { x.blok.gambar = { url, caption: (x.blok.gambar && x.blok.gambar.caption) || '' }; });
+    return true;
+  }
+  if (tipe === 'item' && x.blok.tipe === 'gambar' && x.blok.item[Number(a)]) {
+    ubah(() => { x.blok.item[Number(a)].url = url; });
+    return true;
+  }
+  if (tipe === 'sel' && x.blok.tipe === 'tabel') {
+    const r = x.blok.baris.find((q) => q.id === a);
+    if (r && r.sel[b] && r.sel[b].jenis === 'gambar') {
+      ubah(() => { r.sel[b].nilai = url; });
+      return true;
+    }
+  }
+  return false;
 }
 
 const api = {
@@ -544,8 +597,14 @@ const api = {
 
   togglePratinjau() { ed.pratinjau = !ed.pratinjau; render(); },
 
+  potong(kunci) {
+    if (!ed) return;
+    bukaPotongPdf({ ambilTujuan: daftarSlotGambar, terapkan: isiSlotGambar, tujuanAwal: kunci || '' });
+  },
+
   tutup() {
     if (ed && ed.sibuk) { showToast('info', 'Tunggu unggahan selesai'); return; }
+    if (!tutupPotongPdf()) return;
     const modal = document.getElementById(MODAL_ID);
     if (modal) { modal.classList.add('hidden'); modal.classList.remove('flex'); modal.innerHTML = ''; }
     document.body.classList.remove('overflow-hidden');

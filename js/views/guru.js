@@ -6,6 +6,7 @@ import { collectHotspotItem, renderHotspotConfigForm, renderHotspotItemRow } fro
 import { apiPost, fetchAllInitialData, refreshSubmissionsData, saveToLocalStorage } from '../services/api.js';
 import { state } from '../state.js';
 import { jsArg } from '../services/html.js';
+import { setSumberPdf } from '../components/pdf-crop.js';
 import { parsePdfKeDraf } from '../services/lkpd-parser.js';
 import { labelGame, labelLkpdTipe, labelMedia } from '../services/labels.js';
 import { buildRekap, buildRingkasanSiswa, csvDetailSubmisi, csvRekapMatriks, escapeHtml, filterSiswa, filterSubmisi, getNilaiSubmisi, KOLOM_TIPE, labelModul, labelTipe, statistikKelas } from '../services/nilai.js';
@@ -1167,6 +1168,7 @@ export async function imporPdfLkpd(input) {
     showLoading('Membaca PDF...');
     try {
       const { isi, info } = await parsePdfKeDraf(file, { lewatiSampul: true });
+      setSumberPdf(file); // hanya di memori, dipakai alat Potong dari PDF
       closeLoading();
       if (!isi.bagian.length) {
         Swal.fire({ icon: 'warning', title: 'Tidak ada teks terbaca', text: 'PDF mungkin berupa gambar/pindaian. Buka editor dan isi manual.' });
