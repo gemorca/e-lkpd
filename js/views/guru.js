@@ -1168,13 +1168,20 @@ export async function imporPdfLkpd(input) {
   const lanjut = async () => {
     showLoading('Membaca PDF...');
     try {
-      const { isi, info } = await parsePdfKeDraf(file, { lewatiSampul: true });
+      const { isi, info } = await parsePdfKeDraf(file, { lewatiSampul: true, onProgres: (t) => showLoading(t) });
       await setSumberPdf(file); // hanya di memori, dipakai alat Potong dari PDF dan potong otomatis
       closeLoading();
       if (!isi.bagian.length) {
-        Swal.fire({ icon: 'warning', title: 'Tidak ada teks terbaca', text: 'PDF mungkin berupa gambar/pindaian. Buka editor dan isi manual.' });
+        Swal.fire({
+          icon: 'warning',
+          title: 'Tidak ada teks terbaca',
+          text: info.ocrGagal
+            ? 'PDF berupa gambar dan OCR tidak bisa dimuat (periksa koneksi internet). Coba lagi, atau ekspor ulang PDF dari aplikasi asalnya (Canva/Word) agar teksnya terbaca.'
+            : 'PDF mungkin berupa gambar/pindaian. Buka editor dan isi manual.'
+        });
         return;
       }
+      if (info.halamanOcr) showToast('info', `${info.halamanOcr} halaman berupa gambar dibaca dengan OCR. Teks dan tabel bisa kurang tepat, periksa semua blok bertanda "perlu dicek".`);
       showToast('success', `Draf dibuat: ${isi.bagian.length} bagian, ${info.gambarTerdeteksi || 0} gambar${info.sampulDilewati ? ' (sampul dilewati)' : ''}. Periksa blok bertanda "perlu dicek".`);
       jalankanEditor(isi, { abaikanDraf: true, potongOtomatis: true });
     } catch (err) {

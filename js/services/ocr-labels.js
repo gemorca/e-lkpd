@@ -40,3 +40,32 @@ export async function recognizeWords(worker, canvas) {
     .filter((w) => w && w.text && w.bbox)
     .map((w) => ({ text: w.text, x0: w.bbox.x0, y0: w.bbox.y0, x1: w.bbox.x1, y1: w.bbox.y1, conf: w.confidence }));
 }
+
+/**
+ * Pekerja OCR untuk membaca halaman dokumen (PDF scan) utuh.
+ * kenaliBaris(canvas) -> [{ words:[{text,x0,y0,x1,y1}] }] per baris teks (piksel).
+ */
+export async function buatPekerjaDokumen(lang = 'ind') {
+  const T = await loadTesseract();
+  const worker = await T.createWorker(lang);
+  await worker.setParameters({ tessedit_pageseg_mode: '3' });
+  const kata = (arr) => (arr || [])
+    .filter((w) => w && w.text && w.bbox)
+    .map((w) => ({ text: w.text, x0: w.bbox.x0, y0: w.bbox.y0, x1: w.bbox.x1, y1: w.bbox.y1 }));
+  return {
+    async kenaliBaris(canvas) {
+      const { data } = await worker.recognize(canvas, {}, { blocks: true });
+      const baris = [];
+      (data.blocks || []).forEach((b) => (b.paragraphs || []).forEach((p) => (p.lines || []).forEach((l) => {
+        const w = kata(l.words);
+        if (w.length) baris.push({ words: w });
+      })));
+      if (!baris.length && Array.isArray(data.lines)) data.lines.forEach((l) => baris.push({ words: kata(l.words) }));
+      if (!baris.length) flattenWords(data).forEach((w) => baris.push({ words: kata([w]) }));
+      return baris;
+    },
+    akhiri() {
+      return worker.terminate();
+    }
+  };
+}
