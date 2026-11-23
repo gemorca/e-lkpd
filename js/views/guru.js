@@ -1133,6 +1133,7 @@ function jalankanEditor(isiAwal, opsi = {}) {
     judul: document.getElementById('lkpd-form-judul').value.trim(),
     isi: isiAwal,
     abaikanDraf: !!opsi.abaikanDraf,
+    potongOtomatis: !!opsi.potongOtomatis,
     onSimpan: async (isiBersih) => {
       const ok = await simpanLkpdKeServer(isiBersih);
       if (ok) {
@@ -1168,14 +1169,14 @@ export async function imporPdfLkpd(input) {
     showLoading('Membaca PDF...');
     try {
       const { isi, info } = await parsePdfKeDraf(file, { lewatiSampul: true });
-      setSumberPdf(file); // hanya di memori, dipakai alat Potong dari PDF
+      await setSumberPdf(file); // hanya di memori, dipakai alat Potong dari PDF dan potong otomatis
       closeLoading();
       if (!isi.bagian.length) {
         Swal.fire({ icon: 'warning', title: 'Tidak ada teks terbaca', text: 'PDF mungkin berupa gambar/pindaian. Buka editor dan isi manual.' });
         return;
       }
-      showToast('success', `Draf dibuat: ${isi.bagian.length} bagian${info.sampulDilewati ? ' (sampul dilewati)' : ''}. Periksa blok bertanda "perlu dicek".`);
-      jalankanEditor(isi, { abaikanDraf: true });
+      showToast('success', `Draf dibuat: ${isi.bagian.length} bagian, ${info.gambarTerdeteksi || 0} gambar${info.sampulDilewati ? ' (sampul dilewati)' : ''}. Periksa blok bertanda "perlu dicek".`);
+      jalankanEditor(isi, { abaikanDraf: true, potongOtomatis: true });
     } catch (err) {
       closeLoading();
       Swal.fire({ icon: 'error', title: 'Gagal membaca PDF', text: err.message || String(err) });

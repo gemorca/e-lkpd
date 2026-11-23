@@ -505,3 +505,56 @@ export function tutupPotongPdf(force = false) {
   }
   return true;
 }
+
+/**
+ * Potong banyak wilayah dari PDF sumber (yang dimuat lewat setSumberPdf) tanpa dialog.
+ * daftar: [{ kunci, hal, x0, t0, x1, t1 }]  (poin PDF, dihitung dari atas halaman)
+ * Hasil: [{ kunci, dataUrl }]; wilayah yang gagal dilewati. Kembalikan null bila PDF belum ada.
+ */
+export async function potongBanyakDariPdf(daftar, onProgres) {
+  if (!sumber || typeof pdfjsLib === 'undefined') return null;
+  const dok = await pdfjsLib.getDocument({ data: new Uint8Array(sumber.buffer.slice(0)) }).promise;
+  const hasil = [];
+  const PAD = 1.5;
+  try {
+    const cacheHal = new Map();
+    for (let i = 0; i < daftar.length; i++) {
+      const d = daftar[i];
+      try {
+        let page = cacheHal.get(d.hal);
+        if (!page) {
+          page = await dok.getPage(d.hal);
+          cacheHal.set(d.hal, page);
+        }
+        const v1 = page.getViewport({ scale: 1 });
+        const x0 = Math.max(0, d.x0 - PAD);
+        const t0 = Math.max(0, d.t0 - PAD);
+        const x1 = Math.min(v1.width, d.x1 + PAD);
+        const t1 = Math.min(v1.height, d.t1 + PAD);
+        const w = x1 - x0;
+        const h = t1 - t0;
+        const skala = Math.min(SKALA_MAKS, LEBAR_MAKS / w);
+        const c = document.createElement('canvas');
+        c.width = Math.max(1, Math.round(w * skala));
+        c.height = Math.max(1, Math.round(h * skala));
+        const ctx = c.getContext('2d');
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, c.width, c.height);
+        await page.render({
+          canvasContext: ctx,
+          viewport: page.getViewport({ scale: skala }),
+          transform: [1, 0, 0, 1, -x0 * skala, -t0 * skala]
+        }).promise;
+        hasil.push({ kunci: d.kunci, dataUrl: c.toDataURL('image/jpeg', KUALITAS) });
+      } catch (err) {
+        console.warn('Potong otomatis gagal:', err);
+      }
+      if (onProgres) onProgres(i + 1, daftar.length);
+    }
+  } finally {
+    try { dok.destroy(); } catch (err) {}
+  }
+  return hasil;
+}
+
+export const adaSumberPdf = () => Boolean(sumber);

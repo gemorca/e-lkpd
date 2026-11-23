@@ -85,6 +85,7 @@ function kotakGambarKosong(kelas = 'h-24') {
 }
 
 function kotakIsian(mode, kunci, label, jawaban, baris) {
+  baris = Math.min(12, Math.max(1, Number(baris) || 2));
   const nilai = jawaban && jawaban[kunci] !== undefined && jawaban[kunci] !== null ? String(jawaban[kunci]) : '';
   if (mode === 'isi') {
     return `<textarea data-lkpd-kunci="${e(kunci)}" aria-label="${e(label)}" maxlength="${MAKS_JAWABAN}" rows="${baris}" placeholder="Tuliskan jawabanmu..." class="w-full p-3 rounded-xl border bg-white text-xs leading-relaxed">${e(nilai)}</textarea>`;
@@ -110,9 +111,11 @@ function blokSoal(k, mode, jawaban) {
 
 function blokGambar(k) {
   const item = Array.isArray(k.item) ? k.item : [];
+  // satu gambar = tampil lebar (mis. alur beberapa kartu); beberapa gambar = ubin kecil berdampingan
+  const lebar = item.length === 1 ? 'w-full sm:max-w-md' : 'w-40';
   return `<div class="flex flex-wrap gap-3">${item
     .map((g) => `
-      <figure class="w-40 space-y-1">
+      <figure class="${lebar} space-y-1">
         ${safeUrl(g.url) ? gambarHtml(g.url, 'w-full rounded-xl border', g.caption || '') : kotakGambarKosong()}
         ${g.caption ? `<figcaption class="text-[10px] text-slate-500">${e(g.caption)}</figcaption>` : ''}
       </figure>`)
@@ -120,13 +123,14 @@ function blokGambar(k) {
 }
 
 function selTabel(k, r, c, ri, mode, jawaban) {
+  const barisSel = Math.min(12, Math.max(2, Number(k.barisIsian) || 2));
   const s = (r.sel || {})[c.id] || {};
   if (s.jenis === 'gambar') {
-    return `<td data-jenis="gambar" data-label="${e(c.judul || '')}" class="border p-1.5 align-top">${safeUrl(s.nilai) ? gambarHtml(s.nilai, 'w-20 h-20 sm:w-20 sm:h-20 object-cover rounded-lg border') : ''}</td>`;
+    return `<td data-jenis="gambar" data-label="${e(c.judul || '')}" class="border p-1.5 align-top">${safeUrl(s.nilai) ? gambarHtml(s.nilai, 'w-full max-w-[10rem] h-auto object-contain rounded-lg border') : ''}</td>`;
   }
   if (s.jenis === 'isian') {
     const label = `Baris ${ri + 1}, kolom ${c.judul || '?'}`;
-    return `<td data-jenis="isian" data-label="${e(c.judul || '')}" class="border p-1.5 align-top min-w-[9rem]">${kotakIsian(mode, kunciSel(k.id, r.id, c.id), label, jawaban, 2)}</td>`;
+    return `<td data-jenis="isian" data-label="${e(c.judul || '')}" class="border p-1.5 align-top min-w-[9rem]">${kotakIsian(mode, kunciSel(k.id, r.id, c.id), label, jawaban, barisSel)}</td>`;
   }
   return `<td data-jenis="teks" data-label="${e(c.judul || '')}" class="border p-1.5 align-top whitespace-pre-line">${e(s.nilai || '')}</td>`;
 }

@@ -7,7 +7,7 @@ import { escapeHtml, jsArg, safeUrl } from '../services/html.js';
 import { showToast, showConfirm } from './modal.js';
 import { buatIdAcak } from '../services/lkpd-parser.js';
 import { renderIsiLkpd } from './lkpd-render.js';
-import { bukaPotongPdf, tutupPotongPdf } from './pdf-crop.js';
+import { adaSumberPdf, bukaPotongPdf, potongBanyakDariPdf, tutupPotongPdf } from './pdf-crop.js';
 
 const MAKS_JSON = 45000;
 const MAKS = { bagian: 50, blok: 100, kolom: 10, baris: 50, isian: 500, gambar: 20 };
@@ -52,7 +52,7 @@ function hapusDraf(idLkpd) {
 
 // buang penanda editor (_cek) sebelum disimpan
 function bersihkan(isi) {
-  return JSON.parse(JSON.stringify(isi, (k, v) => (k === '_cek' ? undefined : v)));
+  return JSON.parse(JSON.stringify(isi, (k, v) => (k === '_cek' || k === '_pdf' ? undefined : v)));
 }
 
 export function isiKosong() {
@@ -402,6 +402,7 @@ function renderPratinjau(isi) {
 function render() {
   const modal = document.getElementById(MODAL_ID);
   if (!modal || !ed) return;
+  const jumlahTertunda = gambarTertunda().length;
   const jumlahCek = ed.isi.bagian.reduce((n, b) => n + b.blok.filter((k) => k._cek).length, 0);
   const body = ed.pratinjau
     ? renderPratinjau(ed.isi)
@@ -416,6 +417,7 @@ function render() {
         <h2 class="font-black text-brand-navy text-sm flex-1 min-w-[140px] truncate">Editor Isi LKPD — ${escapeHtml(ed.judul || 'Tanpa judul')}</h2>
         ${jumlahCek ? `<span class="px-2 py-1 rounded-full bg-amber-100 text-amber-800 font-bold">${jumlahCek} blok perlu dicek</span>` : ''}
         <span class="text-slate-500">${hitungIsian(ed.isi)} isian · ${JSON.stringify(bersihkan(ed.isi)).length}/${MAKS_JSON} karakter</span>
+        ${jumlahTertunda ? `<button type="button" class="${cls.btn} bg-amber-50 border-amber-300 text-amber-800" onclick="lkpdEd.potongOtomatis()">🪄 Potong ${jumlahTertunda} gambar otomatis</button>` : ''}
         <button type="button" class="${cls.btn}" onclick="lkpdEd.potong('')">✂ Potong dari PDF</button>
         <button type="button" class="${cls.btn}" onclick="lkpdEd.togglePratinjau()">${ed.pratinjau ? '✏️ Kembali edit' : '👁️ Pratinjau'}</button>
         <button type="button" class="${cls.btn}" onclick="lkpdEd.tutup()">Tutup</button>
@@ -485,7 +487,88 @@ function isiSlotGambar(kunci, url) {
   return false;
 }
 
+/* ---------- potong gambar otomatis dari PDF hasil impor ---------- */
+// Parser mencatat letak tiap gambar di `_pdf` ({hal,x0,t0,x1,t1}). Di sini wilayah itu
+// dipotong dari PDF sumber, diunggah, lalu URL-nya dipasang di tempat gambar.
+
+function gambarTertunda() {
+  const hasil = [];
+  const catat = (kunci, obj, url) => {
+    if (obj && obj._pdf && !url) hasil.push({ kunci, ...obj._pdf });
+  };
+  ed.isi.bagian.forEach((b) => b.blok.forEach((k) => {
+    if (k.tipe === 'soal' && k.gambar) catat('soal|' + k.id, k.gambar, k.gambar.url);
+    else if (k.tipe === 'gambar') k.item.forEach((g, n) => catat('item|' + k.id + '|' + n, g, g.url));
+    else if (k.tipe === 'tabel') {
+      k.baris.forEach((r) => k.kolom.forEach((c) => {
+        const sl = r.sel[c.id];
+        if (sl && sl.jenis === 'gambar') catat('sel|' + k.id + '|' + r.id + '|' + c.id, sl, sl.nilai);
+      }));
+    }
+  }));
+  return hasil;
+}
+
+function pasangUrl(kunci, url) {
+  const [tipe, idBlok, a, b] = String(kunci).split('|');
+  const x = cariBlok(idBlok);
+  if (!x) return;
+  if (tipe === 'soal' && x.blok.gambar) x.blok.gambar.url = url;
+  else if (tipe === 'item' && x.blok.item[Number(a)]) x.blok.item[Number(a)].url = url;
+  else if (tipe === 'sel') {
+    const r = x.blok.baris.find((q) => q.id === a);
+    if (r && r.sel[b]) r.sel[b].nilai = url;
+  }
+}
+
+async function jalankanPotongOtomatis() {
+  const daftar = gambarTertunda();
+  if (!daftar.length) return { ok: true, sisa: 0 };
+  if (!adaSumberPdf()) return { ok: false, sisa: daftar.length, alasan: 'sumber' };
+  ed.sibuk = true;
+  try {
+    showToast('info', 'Memotong ' + daftar.length + ' gambar dari PDF...');
+    const potongan = await potongBanyakDariPdf(daftar);
+    if (!potongan) return { ok: false, sisa: daftar.length, alasan: 'sumber' };
+
+    let selesai = 0;
+    let gagal = 0;
+    const antre = [...potongan];
+    const pekerja = async () => {
+      while (antre.length) {
+        const p = antre.shift();
+        try {
+          const res = await apiPost({ action: 'upload_image', base64Data: p.dataUrl, fileName: 'potongan.jpg' });
+          if (res && res.success && res.url) {
+            pasangUrl(p.kunci, res.url);
+            selesai++;
+          } else gagal++;
+        } catch (err) {
+          gagal++;
+        }
+      }
+    };
+    await Promise.all([pekerja(), pekerja(), pekerja()]);
+    gagal += daftar.length - potongan.length;
+    simpanDraf();
+    render();
+    showToast(gagal ? 'warning' : 'success', gagal
+      ? selesai + ' gambar terpasang, ' + gagal + ' gagal. Tekan "Potong gambar otomatis" lagi untuk mengulang.'
+      : selesai + ' gambar terpasang otomatis');
+    return { ok: gagal === 0, sisa: gagal };
+  } finally {
+    ed.sibuk = false;
+  }
+}
+
 const api = {
+  async potongOtomatis() {
+    if (!ed || ed.sibuk) return;
+    const r = await jalankanPotongOtomatis();
+    if (!r.ok && r.alasan === 'sumber') {
+      showToast('error', 'PDF sumber belum dipilih. Buka "Potong dari PDF" dan pilih file PDF, lalu coba lagi.');
+    }
+  },
   set(id, f, v) { const x = cariBlok(id); if (x) { x.blok[f] = v; simpanDraf(); } },
   bagianSet(id, f, v) { const b = cariBagian(id); if (b) { b[f] = v; simpanDraf(); } },
   bagianTambah() {
@@ -613,6 +696,8 @@ const api = {
 
   async simpan() {
     if (!ed || ed.sibuk) return;
+    if (gambarTertunda().length && adaSumberPdf()) await jalankanPotongOtomatis();
+    if (!ed) return;
     const galat = validasiEditor(ed.isi);
     if (galat.length) {
       const html = '<ul style="text-align:left;font-size:12px;max-height:50vh;overflow:auto;padding-left:18px;list-style:disc">' +
@@ -675,6 +760,8 @@ export function bukaEditorLkpd(opsi) {
   modal.classList.add('flex');
   document.body.classList.add('overflow-hidden');
   render();
+
+  if (opsi.potongOtomatis) setTimeout(() => { if (ed) api.potongOtomatis(); }, 300);
 
   if (draf && draf.isi && Array.isArray(draf.isi.bagian) && JSON.stringify(draf.isi) !== JSON.stringify(ed.isi)) {
     Swal.fire({
